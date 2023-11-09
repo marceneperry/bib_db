@@ -1,0 +1,24 @@
+[package]
+name = "bib_db"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sqlx = { version = "0.7.1", features = ["runtime-tokio-native-tls", "sqlite"] }
+tokio = { version = "1.20.0", features = ["full"] }
+crossterm = "0.27.0"
+ratatui = "0.22.0"
+serde = { version = "1.0.181", features = ["derive"] }
+serde_json = "1.0.104"
+dotenvy = "0.15.7"
+async-trait = "0.1.72"
+
+[dependencies.uuid]
+version = "1.4.1"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]
