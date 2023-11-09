@@ -6,6 +6,7 @@ use async_trait::async_trait;
 
 // currently only adding new items. later add ability to search and edit items.
 
+
 #[async_trait]
 pub trait TableInsert {
     async fn insert(&self) {} // maybe use return type Result<> here?

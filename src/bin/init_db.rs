@@ -2,6 +2,8 @@
 use sqlx::{migrate::MigrateDatabase, Pool, Sqlite, SqlitePool};
 
 
+// todo! add  DB_State?
+
 /// First time using the application you can run this init_db main.
 /// It will setup the database and initialize the base tables outlined in the migrations folder.
 #[tokio::main]
