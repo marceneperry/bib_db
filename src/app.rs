@@ -1,11 +1,13 @@
 use std::string::String as String;
+use std::sync::Arc;
 use uuid::Uuid;
-use crate::db::{connect, MasterEntries, Book, Publisher, Relationship, Article, Author, MonthYear, Organizations};
-use crate::DB_URL;
+use crate::db::{MasterEntries, Book, Publisher, Relationship, Article, Author, MonthYear, Organizations};
 use async_trait::async_trait;
+use sqlx::SqlitePool;
+use crate::DB_URL;
+
 
 // currently only adding new items. later add ability to search and edit items.
-
 
 #[async_trait]
 pub trait TableInsert {
@@ -14,15 +16,17 @@ pub trait TableInsert {
 
 impl MasterEntries {
     pub fn new_book() -> MasterEntries {
+        let key = Uuid::new_v4().to_string();
         MasterEntries {
-            cite_key: Uuid::new_v4(),
-            entry_type: "BOOK".parse().unwrap()
+            cite_key: key,
+            entry_type: "BOOK".parse().unwrap(),
         }
     }
 
     pub fn new_article() -> MasterEntries {
+        let key = Uuid::new_v4().to_string();
         MasterEntries {
-            cite_key: Uuid::new_v4(),
+            cite_key: key,
             entry_type: "ARTICLE".parse().unwrap()
         }
     }
@@ -31,10 +35,11 @@ impl MasterEntries {
 #[async_trait]
 impl TableInsert for MasterEntries {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO master_entries (cite_key, entry_type) VALUES (?,?,)")
-                .bind(self.cite_key)
+                .bind(&self.cite_key)
                 .bind(&self.entry_type)
-                .execute(&DB_URL)
+                .execute(&*db)
                 .await;
 
             match result {
@@ -49,12 +54,13 @@ impl Book {
         let master = MasterEntries::new_book();
         let publisher = Publisher::new();
         let year = String::new();
-        let m_y = MonthYear::new(year as u8);
+        let m_y = MonthYear::new(year);
+        let book_id = Uuid::new_v4().to_string();
         let book = Book {
-            book_id: Uuid::new_4(),
-            cite_key: master.cite_key,
-            publisher_id: publisher.publisher_id,
-            month_year_id: m_y.month_year_id,
+            book_id,
+            cite_key: master.cite_key.clone(),
+            publisher_id: publisher.publisher_id.clone(),
+            month_year_id: m_y.month_year_id.clone(),
             editor: String::new(),
             title: String::new(),
             pages: String::new(),
@@ -64,7 +70,7 @@ impl Book {
             note: String::new(),
         };
 
-        let _connection = connect();
+
 
         master.insert().await;
         book.insert().await;
@@ -77,11 +83,12 @@ impl Book {
 #[async_trait]
 impl TableInsert for Book {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO book (book_id, cite_key, publisher_id, month_year_id, editor, title, pages, volume, edition, series, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,)")
-            .bind(self.book_id)
-            .bind(self.cite_key)
-            .bind(self.publisher_id)
-            .bind(self.month_year_id)
+            .bind(&self.book_id)
+            .bind(&self.cite_key)
+            .bind(&self.publisher_id)
+            .bind(&self.month_year_id)
             .bind(&self.editor)
             .bind(&self.title)
             .bind(&self.pages)
@@ -89,7 +96,7 @@ impl TableInsert for Book {
             .bind(&self.edition)
             .bind(&self.series)
             .bind(&self.note)
-            .execute(&DB_URL)
+            .execute(&*db)
             .await;
 
         match result {
@@ -97,15 +104,15 @@ impl TableInsert for Book {
             Err(e) => eprintln!("Error inserting row: {}", e),
         };
     }
-
-
 }
 
 impl Relationship {
-    pub fn new(master_key: Uuid) -> Relationship {
+    pub fn new(master_key: String) -> Relationship {
+        let parent_id = Uuid::new_v4().to_string();
+        let child_id = Uuid::new_v4().to_string();
         Relationship {
-            parent_id: Uuid::new_v4(),
-            child_id: Uuid::new_v4(),
+            parent_id,
+            child_id,
             cite_key: master_key,
         }
     }
@@ -114,11 +121,12 @@ impl Relationship {
 #[async_trait]
 impl TableInsert for Relationship {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO relationship (parent_id, child_id, cite_key) VALUES (?,?,?,)")
-            .bind(self.parent_id)
-            .bind(self.child_id)
-            .bind(self.cite_key)
-            .execute(&DB_URL)
+            .bind(&self.parent_id)
+            .bind(&self.child_id)
+            .bind(&self.cite_key)
+            .execute(&*db)
             .await;
 
         match result {
@@ -129,10 +137,11 @@ impl TableInsert for Relationship {
 }
 
 impl Author {
-    pub fn new(master_key: Uuid) -> Author {
+    pub fn new(master_key: String) -> Author {
+        let author_id = Uuid::new_v4().to_string();
         Author {
             cite_key: master_key,
-            author_id: Uuid::new_v4(),
+            author_id,
             authors: String::new(),
         }
     }
@@ -141,11 +150,12 @@ impl Author {
 #[async_trait]
 impl TableInsert for Author {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO author (cite_key, author_id, authors) VALUES (?,?,?,)")
-            .bind(self.cite_key)
-            .bind(self.author_id)
+            .bind(&self.cite_key)
+            .bind(&self.author_id)
             .bind(&self.authors)
-            .execute(&DB_URL)
+            .execute(&*db)
             .await;
 
         match result {
@@ -157,8 +167,9 @@ impl TableInsert for Author {
 
 impl Publisher {
     pub fn new() -> Publisher {
+        let publisher_id = Uuid::new_v4().to_string();
         Publisher {
-            publisher_id: Uuid::new_v4(),
+            publisher_id,
             publisher: String::new(),
             address: String::new(),
         }
@@ -168,11 +179,12 @@ impl Publisher {
 #[async_trait]
 impl TableInsert for Publisher {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO publisher (publisher_id, publisher, address) VALUES (?,?,?,)")
-            .bind(self.publisher_id)
+            .bind(&self.publisher_id)
             .bind(&self.publisher)
             .bind(&self.address)
-            .execute(&DB_URL)
+            .execute(&*db)
             .await;
 
         match result {
@@ -184,8 +196,9 @@ impl TableInsert for Publisher {
 
 impl Organizations {
     pub fn new() -> Organizations {
+        let organization_id = Uuid::new_v4().to_string();
         Organizations {
-            organization_id: Uuid::new_v4(),
+            organization_id,
             organization: String::new(),
             address: String::new(),
         }
@@ -195,11 +208,12 @@ impl Organizations {
 #[async_trait]
 impl TableInsert for Organizations {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO organizations (organization_id, organization, address) VALUES (?,?,?,)")
-            .bind(self.organization_id)
+            .bind(&self.organization_id)
             .bind(&self.organization)
             .bind(&self.address)
-            .execute(&DB_URL)
+            .execute(&*db)
             .await;
 
         match result {
@@ -210,9 +224,10 @@ impl TableInsert for Organizations {
 }
 
 impl MonthYear {
-    pub fn new(year: u8) -> MonthYear {
+    pub fn new(year: String) -> MonthYear {
+        let month_year_id = Uuid::new_v4().to_string();
         MonthYear {
-            month_year_id: Uuid::new_v4(),
+            month_year_id,
             month: String::new(),
             year,
         }
@@ -222,11 +237,12 @@ impl MonthYear {
 #[async_trait]
 impl TableInsert for MonthYear {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO month_year (month_year_id, month, year) VALUES (?,?,?,)")
             .bind(&self.month_year_id)
             .bind(&self.month)
             .bind(&self.year)
-            .execute(&DB_URL)
+            .execute(&*db)
             .await;
 
         match result {
@@ -241,12 +257,13 @@ impl Article {
         let master = MasterEntries::new_article();
         let publisher = Publisher::new();
         let year = String::new();
-        let m_y = MonthYear::new(year as u8);
+        let m_y = MonthYear::new(year);
+        let article_id = Uuid::new_v4().to_string();
         let article = Article {
-            cite_key: master.cite_key,
-            article_id: Uuid::new_v4(),
-            publisher_id: publisher.publisher_id,
-            month_year_id: m_y.month_year_id,
+            cite_key: master.cite_key.clone(),
+            article_id,
+            publisher_id: publisher.publisher_id.clone(),
+            month_year_id: m_y.month_year_id.clone(),
             title: String::new(),
             journal: String::new(),
             volume: String::new(),
@@ -254,8 +271,6 @@ impl Article {
             note: String::new(),
             edition: String::new(),
         };
-
-        let _connection = connect();
 
         master.insert().await;
         article.insert().await;
@@ -267,18 +282,19 @@ impl Article {
 #[async_trait]
 impl TableInsert for Article {
     async fn insert(&self) {
+        let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
         let result = sqlx::query("INSERT INTO article (cite_key, article_id, publisher_id, month_year_id, title, journal, volume, pages, note, edition) VALUES (?,?,?,?,?,?,?,?,?,?)")
-            .bind(self.cite_key)
-            .bind(self.article_id)
-            .bind(self.publisher_id)
-            .bind(self.month_year_id)
+            .bind(&self.cite_key)
+            .bind(&self.article_id)
+            .bind(&self.publisher_id)
+            .bind(&self.month_year_id)
             .bind(&self.title)
             .bind(&self.journal)
             .bind(&self.volume)
             .bind(&self.pages)
             .bind(&self.note)
             .bind(&self.edition)
-            .execute(&DB_URL)
+            .execute(&*db)
             .await;
 
         match result {
@@ -298,9 +314,6 @@ impl<'a> App<'a> {
         App {
             titles: vec!["Home", "NewBook", "NewArticle"],
             index: 0,
-            // select_input: None,
-            // current_screen: CurrentScreen::Main,
-            // currently_editing: None,
         }
     }
 

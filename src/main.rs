@@ -3,6 +3,7 @@ mod ui;
 mod app;
 mod db;
 
+
 use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
@@ -17,11 +18,11 @@ use crate::{
 
 /// If database is not already created, initialize it by running `init_db` binary crate.
 /// Update const DB_URL to match what you have named it in `init_db`
-const DB_URL: &str = "sqlite://../../bibliographic_db/bib_data.db";
+const DB_URL: &str = "sqlite://bibliographic_db/bib_data.db";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-
+    // open database
 
     // setup terminal
     enable_raw_mode()?;
@@ -31,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let mut app = App::new();
+    let app = App::new();
     let res = run_app(&mut terminal, app);
 
 
