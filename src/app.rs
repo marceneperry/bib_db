@@ -9,6 +9,58 @@ use crate::DB_URL;
 
 // currently only adding new items. later add ability to search and edit items.
 
+pub struct App<'a> {
+    pub titles: Vec<&'a str>,
+    pub index: usize,
+}
+
+impl<'a> App<'a> {
+    pub fn new() -> App<'a> {
+        App {
+            titles: vec!["Home", "NewBook", "NewArticle"],
+            index: 0,
+        }
+    }
+
+    pub fn next(&mut self) {
+        self.index = (self.index + 1) % self.titles.len();
+    }
+
+    pub fn previous(&mut self) {
+        if self.index > 0 {
+            self.index -= 1;
+        } else {
+            self.index = self.titles.len() - 1;
+        }
+    }
+
+}
+
+pub(crate) enum AppEvent<I> {
+    Input(I),
+    Tick,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum MenuItem {
+    Home,
+    Book,
+    Article,
+}
+
+impl From<MenuItem> for usize {
+    fn from(input: MenuItem) -> usize {
+        match input {
+            MenuItem::Home => 0,
+            MenuItem::Book => 1,
+            MenuItem::Article => 2,
+        }
+    }
+}
+
+
+
+/// Database structures
 #[async_trait]
 pub trait TableInsert {
     async fn insert(&self) {} // maybe use return type Result<> here?
@@ -61,7 +113,7 @@ impl Book {
             cite_key: master.cite_key.clone(),
             publisher_id: publisher.publisher_id.clone(),
             month_year_id: m_y.month_year_id.clone(),
-            editor: String::new(),
+            author: String::new(),
             title: String::new(),
             pages: String::new(),
             volume: String::new(),
@@ -89,7 +141,7 @@ impl TableInsert for Book {
             .bind(&self.cite_key)
             .bind(&self.publisher_id)
             .bind(&self.month_year_id)
-            .bind(&self.editor)
+            .bind(&self.author)
             .bind(&self.title)
             .bind(&self.pages)
             .bind(&self.volume)
@@ -304,29 +356,3 @@ impl TableInsert for Article {
     }
 }
 
-pub struct App<'a> {
-    pub titles: Vec<&'a str>,
-    pub index: usize,
-}
-
-impl<'a> App<'a> {
-    pub fn new() -> App<'a> {
-        App {
-            titles: vec!["Home", "NewBook", "NewArticle"],
-            index: 0,
-        }
-    }
-
-    pub fn next(&mut self) {
-        self.index = (self.index + 1) % self.titles.len();
-    }
-
-    pub fn previous(&mut self) {
-        if self.index > 0 {
-            self.index -= 1;
-        } else {
-            self.index = self.titles.len() - 1;
-        }
-    }
-
-}

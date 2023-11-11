@@ -1,4 +1,3 @@
-// use crossterm::style::Stylize;
 
 use ratatui::{
     backend::Backend,
@@ -8,11 +7,18 @@ use ratatui::{
     widgets::{Block, Borders},
     Frame,
 };
-// use ratatui::prelude::Marker::Block;
 use ratatui::prelude::Stylize;
 use ratatui::widgets::Tabs;
-
+use tokio::io;
 use crate::app::{App};
+
+// #[derive(Error, Debug)]
+// pub enum Error {
+//     #[error("error reading the DB file: {0}")]
+//     ReadDBError(#[from] io::Error),
+//     #[error("error parsing the DB file: {0}")]
+//     ParseDBError(#[from] serde_json::Error),
+// }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     let size = f.size();

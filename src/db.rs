@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use anyhow;
 
 
 /// Structs for sql data tables
@@ -10,13 +10,13 @@ pub struct MasterEntries {
     // pub(crate) connection: SqlitePool,
 }
 
-#[derive(Clone, FromRow, Debug)]
+#[derive(Clone, FromRow, Debug, Serialize, Deserialize)]
 pub struct Book {
     pub(crate) book_id: String,
     pub(crate) cite_key: String,
     pub(crate) publisher_id: String,
     pub(crate) month_year_id: String,
-    pub(crate) editor: String,
+    pub(crate) author: String,
     pub(crate) title: String,
     pub(crate) pages: String,
     pub(crate) volume: String,
