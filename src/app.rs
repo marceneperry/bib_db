@@ -48,6 +48,37 @@ pub(crate) enum MenuItem {
     Article,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum BookMenuItem {
+    ShowBooks,
+    AddBook,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum ArticleMenuItem {
+    ShowArticles,
+    AddArticle,
+}
+
+
+impl From<BookMenuItem> for usize {
+    fn from(input: BookMenuItem) -> usize {
+        match input {
+            BookMenuItem::ShowBooks => 0,
+            BookMenuItem::AddBook => 1,
+        }
+    }
+}
+
+impl From<ArticleMenuItem> for usize {
+    fn from(input: ArticleMenuItem) -> usize {
+        match input {
+            ArticleMenuItem::ShowArticles => 0,
+            ArticleMenuItem::AddArticle => 1,
+        }
+    }
+}
+
 impl From<MenuItem> for usize {
     fn from(input: MenuItem) -> usize {
         match input {

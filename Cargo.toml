@@ -15,6 +15,7 @@ serde_json = "1.0.104"
 dotenvy = "0.15.7"
 async-trait = "0.1.72"
 anyhow = "1.0.72"
+tui-textarea = { version = "*", features = ["ratatui-crossterm"], default-features=false }
 
 [dependencies.uuid]
 version = "1.4.1"
