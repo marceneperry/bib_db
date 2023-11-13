@@ -7,21 +7,17 @@ mod db;
 use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use std::{error::Error, fs, io, thread};
+use std::{error::Error, fs, io};
 use std::process::exit;
 use std::time::Duration;
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::prelude::{Alignment, Color, Constraint, Direction, Layout, Modifier, Style};
-// use ratatui::prelude::Marker::Block;
 use ratatui::Terminal;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Widget, Block, Borders, BorderType, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs};
-// use ratatui_textarea::TextArea;
-// use ratatui_textarea;
-
-use tui_textarea::{Input, Key, TextArea};
+use ratatui::widgets::{Block, Borders, BorderType, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs, Widget};
 use tokio::sync::mpsc;
 use tokio::time::Instant;
+use tui_textarea::{Input, Key, TextArea};
 use crate::{
     app::{App, AppEvent, MenuItem},
 };
@@ -32,14 +28,17 @@ use crate::db::Book;
 /// Update const DB_URL to match what you have named it in `init_db`
 const DB_URL: &str = "sqlite://bibliographic_db/bib_data.db";
 const DB_PATH: &str = "bibliographic_db/db.json";
+
+
+
+
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // open database
 
     // setup terminal
     enable_raw_mode()?;
-
-
     let mut stderr = io::stderr(); // This is a special case. Normally using stdout is fine
     execute!(stderr, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stderr);
@@ -50,8 +49,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 
     // setup mpsc to handle the channels in the rendering loop
-    let (tx, mut rx) = mpsc::channel(10);
-    let tick_rate = Duration::from_millis(200);
+    let (tx, mut rx) = mpsc::channel(1);
+    let tick_rate = Duration::from_millis(100);
     tokio::spawn(async move  {
         let mut last_tick = Instant::now();
         loop {
@@ -73,17 +72,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let menu_titles = vec!["Home", "Books", "Articles", "Quit"];
-    let book_menu_titles = vec!["Home", "Show Books", "New Book", "Quit"];
-    let article_menu_titles = vec!["Home", "Show Articles", "New Article", "Quit"];
+    let menu_titles = vec!["Home", "Books", "Show Books", "New Book", "Articles", "List Articles", "Insert Articles", "Quit"];
     let mut active_menu_item = MenuItem::Home;
-    let mut book_menu_item = BookMenuItem::ShowBooks;
-    let mut article_menu_item = ArticleMenuItem::ShowArticles;
 
     let mut book_list_state = ListState::default();
     book_list_state.select(Some(0));
 
-    let mut textarea = TextArea::default();
+    // let mut textarea = TextArea::default();
+    let mut text_area = render_add_book();
+
 
     // terminal loop
     loop {
@@ -95,9 +92,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .constraints(
                     [
                         Constraint::Length(3), // main menu chunks[0]
-                        Constraint::Length(3), // submenu chunks[1]
-                        Constraint::Min(2), // content chunks[2]
-                        Constraint::Length(3), // copyright chunks[3]
+                        Constraint::Min(2), // content chunks[1]
+                        Constraint::Length(3), // copyright chunks[2]
                     ]
                         .as_ref(),
                 )
@@ -115,7 +111,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         .border_type(BorderType::Plain),
                 );
 
-            rect.render_widget(copyright, chunks[3]);
+            rect.render_widget(copyright, chunks[2]);
 
             // Main menu section
             let menu = menu_titles
@@ -145,91 +141,55 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             // Change to a different menu item
             match active_menu_item {
-                MenuItem::Home => rect.render_widget(render_home(), chunks[2]),
+                MenuItem::Home => rect.render_widget(render_home(), chunks[1]),
 
-                MenuItem::Book => {
-                    match book_menu_item {
-                        BookMenuItem::ShowBooks => {
-                            // Book menu
-                            let book_menu = book_menu_titles
-                                .iter()
-                                .map(|t| {
-                                    let (first, rest) = t.split_at(1);
-                                    Line::from(vec![
-                                        Span::styled(
-                                            first,
-                                            Style::default()
-                                                .fg(Color::Yellow)
-                                                .add_modifier(Modifier::UNDERLINED),
-                                        ),
-                                        Span::styled(rest, Style::default().fg(Color::White)),
-                                    ])
-                                })
-                                .collect();
+                MenuItem::Book => rect.render_widget(render_book_page(), chunks[1]),
 
-                            let book_tabs = Tabs::new(book_menu)
-                                .select(book_menu_item.into())
-                                .block(Block::default().title("Book Menu").borders(Borders::ALL))
-                                .style(Style::default().fg(Color::White))
-                                .highlight_style(Style::default().fg(Color::Yellow))
-                                .divider(Span::raw("|"));
-
-
-                            let book_chunks = Layout::default()
+                MenuItem::ShowBooks => {
+                    let book_chunks = Layout::default()
                                 .direction(Direction::Horizontal)
                                 .constraints(
                                     [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
                                 )
-                                .split(chunks[2]);
-
-                            rect.render_widget(book_tabs, chunks[1]);
-
-                            let (left, right) = render_books(&book_list_state);
-                            rect.render_stateful_widget(left, book_chunks[0], &mut book_list_state);
-                            rect.render_widget(right, book_chunks[1]);
-                        }
-                        BookMenuItem::AddBook => {
-                            // Book menu
-                            let book_menu = book_menu_titles
-                                .iter()
-                                .map(|t| {
-                                    let (first, rest) = t.split_at(1);
-                                    Line::from(vec![
-                                        Span::styled(
-                                            first,
-                                            Style::default()
-                                                .fg(Color::Yellow)
-                                                .add_modifier(Modifier::UNDERLINED),
-                                        ),
-                                        Span::styled(rest, Style::default().fg(Color::White)),
-                                    ])
-                                })
-                                .collect();
-
-                            let book_tabs = Tabs::new(book_menu)
-                                .select(book_menu_item.into())
-                                .block(Block::default().title("Book Menu").borders(Borders::ALL))
-                                .style(Style::default().fg(Color::White))
-                                .highlight_style(Style::default().fg(Color::Yellow))
-                                .divider(Span::raw("|"));
+                                .split(chunks[1]);
 
 
-                            let book_chunks = Layout::default()
-                                .direction(Direction::Horizontal)
-                                .constraints(
-                                    [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
-                                )
-                                .split(chunks[2]);
+                    let (left, right) = render_books(&book_list_state);
+                    rect.render_stateful_widget(left, book_chunks[0], &mut book_list_state);
+                    rect.render_widget(right, book_chunks[1]);
 
-                            rect.render_widget(book_tabs, chunks[1]);
-
-                            let widget = textarea.widget();
-                        }
-                    }
                 }
+
+                MenuItem::NewBook => {
+                    let book_chunks = Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints(
+                            [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
+                        )
+                        .split(chunks[1]);
+
+
+                        let widget = text_area.widget();
+
+                        rect.render_widget(widget, chunks[1]);
+
+                        match crossterm::event::read().expect("can read tui text_area").into() {
+                            Input { key: Key::Esc, .. } => {},
+                            input => {
+                                text_area.input(input);
+                            }
+                        }
+
+
+                    }
+
                 MenuItem::Article => {}
+                MenuItem::ListArticles => {}
+                MenuItem::InsertArticle => {}
             }
-        }).expect("can't finish terminal");
+        }).expect("can finish terminal");
+
+
 
         match rx.recv().await {
             Some(AppEvent::Input(event)) => match event.code {
@@ -240,16 +200,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
                 KeyCode::Char('h') => active_menu_item = MenuItem::Home,
                 KeyCode::Char('b') => active_menu_item = MenuItem::Book,
+                KeyCode::Char('s') => active_menu_item = MenuItem::ShowBooks,
+                KeyCode::Char('n') => active_menu_item = MenuItem::NewBook,
                 KeyCode::Char('a') => active_menu_item = MenuItem::Article,
-                KeyCode::Char('n') => book_menu_item = BookMenuItem::AddBook,
-                KeyCode::Char('s') => book_menu_item = BookMenuItem::ShowBooks,
-
+                KeyCode::Char('l') => active_menu_item = MenuItem::ListArticles,
+                KeyCode::Char('i') => active_menu_item = MenuItem::InsertArticle,
                 _ => {}
             },
             Some(AppEvent::Tick) => {}
             None => {}
         }
+
+    // // restore terminal
+    // disable_raw_mode()?;
+    // execute!(
+    //     terminal.backend_mut(),
+    //     LeaveAlternateScreen,
+    //     DisableMouseCapture
+    // )?;
+    // terminal.show_cursor()?;
+    //
+    // break Ok(());
     }
+
+
 }
 
 // async fn run_app<B: Backend>(terminal: &mut Terminal<B>, _app: App<'_>) {
@@ -262,29 +236,30 @@ fn read_db() -> Result<Vec<Book>, io::Error> {
     Ok(parsed)
 }
 
-// fn render_add_book() -> Box<dyn Widget> {
-//     let new_book = Block::default()
-//         .borders(Borders::ALL)
-//         .style(Style::default().fg(Color::White))
-//         .title("New Book")
-//         .border_type(BorderType::Plain);
-//
-//     let lines = vec![
-//         "{".to_string(),
-//         "    \"title\": \"\",".to_string(),
-//         "    \"author\": \"\",".to_string(),
-//         "    \"pages\": \"\",".to_string(),
-//         "    \"volume\": \"\",".to_string(),
-//         "    \"edition\": \"\",".to_string(),
-//         "    \"series\": \"\",".to_string(),
-//         "    \"note\": \"\"".to_string(),
-//         "},".to_string()
-//         ];
-//
-//     let textarea = TextArea::new(lines);
-//
-//     textarea.widget()
-// }
+fn render_add_book() -> TextArea<'static> {
+    let new_book = Block::default()
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::White))
+        .title("New Book")
+        .border_type(BorderType::Plain);
+
+    let lines = vec![
+        "{".to_string(),
+        "    \"title\": \"\",".to_string(),
+        "    \"author\": \"\",".to_string(),
+        "    \"pages\": \"\",".to_string(),
+        "    \"volume\": \"\",".to_string(),
+        "    \"edition\": \"\",".to_string(),
+        "    \"series\": \"\",".to_string(),
+        "    \"note\": \"\"".to_string(),
+        "},".to_string()
+        ];
+
+    let mut textarea = TextArea::new(lines);
+    textarea.set_block(new_book);
+    textarea
+
+}
 
 fn render_books<'a>(book_list_state: &ListState) -> (List<'a>, Table<'a>) {
     let books = Block::default()
@@ -405,6 +380,30 @@ fn render_home<'a>() -> Paragraph<'a> {
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
             .title("Home")
+            .border_type(BorderType::Plain),
+    );
+    home
+}
+
+fn render_book_page<'a>() -> Paragraph<'a> {
+    let home = Paragraph::new(vec![
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::styled(
+            "Books Home",
+            Style::default().fg(Color::LightBlue),
+        )]),
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::raw("Press 's' to show a list of Books")]),
+        Line::from(vec![Span::raw("Press 'n' to add a new book.")]),
+    ])
+    .alignment(Alignment::Center)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Book options")
             .border_type(BorderType::Plain),
     );
     home

@@ -45,11 +45,16 @@ pub(crate) enum AppEvent<I> {
 pub(crate) enum MenuItem {
     Home,
     Book,
+    ShowBooks,
+    NewBook,
     Article,
+    ListArticles,
+    InsertArticle,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum BookMenuItem {
+    Home,
     ShowBooks,
     AddBook,
 }
@@ -64,8 +69,9 @@ pub(crate) enum ArticleMenuItem {
 impl From<BookMenuItem> for usize {
     fn from(input: BookMenuItem) -> usize {
         match input {
-            BookMenuItem::ShowBooks => 0,
-            BookMenuItem::AddBook => 1,
+            BookMenuItem::Home => 0,
+            BookMenuItem::ShowBooks => 1,
+            BookMenuItem::AddBook => 2,
         }
     }
 }
@@ -84,7 +90,11 @@ impl From<MenuItem> for usize {
         match input {
             MenuItem::Home => 0,
             MenuItem::Book => 1,
-            MenuItem::Article => 2,
+            MenuItem::ShowBooks => 2,
+            MenuItem::NewBook => 3,
+            MenuItem::Article => 4,
+            MenuItem::ListArticles => 5,
+            MenuItem::InsertArticle => 6,
         }
     }
 }

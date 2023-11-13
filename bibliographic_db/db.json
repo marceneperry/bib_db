@@ -1,0 +1,29 @@
+[
+    {
+        "book_id": "1",
+        "cite_key": "1",
+        "publisher_id": "1",
+        "month_year_id": "1",
+        "title": "Les Miserables",
+        "author": "Jean ValJean",
+        "pages": "300",
+        "volume": "vol. 1",
+        "edition": "1st edition",
+        "series": "N/A",
+        "note": "Classic"
+    },
+
+    {
+        "book_id": "2",
+        "cite_key": "2",
+        "publisher_id": "2",
+        "month_year_id": "2",
+        "title": "20,000 leagues under the sea",
+        "author": "Jules Verne",
+        "pages": "298",
+        "volume": "N/A",
+        "edition": "2nd edition",
+        "series": "N/A",
+        "note": "Classic"
+    }
+]

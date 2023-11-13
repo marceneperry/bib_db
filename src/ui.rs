@@ -9,7 +9,6 @@ use ratatui::{
 };
 use ratatui::prelude::Stylize;
 use ratatui::widgets::Tabs;
-use tokio::io;
 use crate::app::{App};
 
 // #[derive(Error, Debug)]
@@ -20,7 +19,7 @@ use crate::app::{App};
 //     ParseDBError(#[from] serde_json::Error),
 // }
 
-pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
+pub fn ui(f: &mut Frame, app: &App) {
     let size = f.size();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
