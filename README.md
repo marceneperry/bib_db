@@ -3,6 +3,7 @@ A bibliographic relational database built in Rust.  A basic implementation to st
 
 This is a TUI (Terminal User Interface) program that allows a user to store and retrieve data from a database.  For the first check-in it will show you items in a json database file.  Later I will change it to SQLite
 
+![img.png](img.png)
 
 # General usage
 Initialize the TUI by using `cargo run --bin bib_db`

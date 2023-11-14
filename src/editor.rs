@@ -1,3 +1,5 @@
+// An example of an editor. Use this as a reference for creating my text editor widget
+
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, is_raw_mode_enabled, EnterAlternateScreen,
