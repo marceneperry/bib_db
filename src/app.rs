@@ -1,4 +1,3 @@
-use std::io;
 use std::process::exit;
 use std::string::String as String;
 use std::sync::{Arc, Mutex};
@@ -6,19 +5,17 @@ use std::time::Duration;
 use uuid::Uuid;
 use crate::db::{MasterEntries, Book, Publisher, Article, MonthYear};
 use async_trait::async_trait;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, Event::Key};
 use crossterm::{event, execute};
-use crossterm::event::Event::Key;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, is_raw_mode_enabled, EnterAlternateScreen, LeaveAlternateScreen};
-use ratatui::backend::CrosstermBackend;
+use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::{Terminal};
 use ratatui::prelude::{Alignment, Color, Constraint, Direction, Layout, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, BorderType, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs};
 use sqlx::SqlitePool;
-// use tokio::fs;
-use std::fs;
-// use tokio::runtime::Handle;
+use tokio::{fs};
+use tokio::io::Stderr;
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 use tui_textarea::{TextArea};
@@ -48,24 +45,24 @@ pub struct App<'a> {
     pub index: usize,
     pub active_menu_item: MenuItem,
     pub book_list_state: Mutex<ListState>,
-    pub terminal: Arc<Terminal<CrosstermBackend<io::Stderr>>>,
+    // pub terminal: Arc<Terminal<CrosstermBackend<io::Stderr>>>,
 }
 
 impl<'a> App<'a> {
-    pub fn new() -> io::Result<Self> {
-        let mut stderr = io::stderr();
+    pub fn new() -> tokio::io::Result<Self> {
+        let mut stderr = tokio::io::stderr();
         if !is_raw_mode_enabled()? {
             enable_raw_mode()?;
             execute!(stderr, EnterAlternateScreen)?;
         };
-        let backend = CrosstermBackend::new(stderr);
+        // let backend = CrosstermBackend::new(stderr);
         Ok(
             App {
                 menu_titles: vec!["Home", "Books", "Show Books", "New Book", "Articles", "List Articles", "Insert Articles", "Quit"],
                 index: 0,
                 active_menu_item: MenuItem::Home,
                 book_list_state: Mutex::new(ListState::default()),
-                terminal: Arc::new(Terminal::new(backend)?),
+                // terminal: Arc::new(Terminal::new(backend)?),
             })
     }
 
@@ -81,7 +78,7 @@ impl<'a> App<'a> {
         }
     }
 
-    pub async fn run(&mut self) -> io::Result<()> {
+    pub async fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<std::io::Stderr>>) {
         // setup mpsc to handle the channels in the rendering loop
         let (tx, mut rx) = mpsc::channel(1);
         let tick_rate = Duration::from_millis(100);
@@ -107,8 +104,8 @@ impl<'a> App<'a> {
         });
 
         loop {
-            let term = self.terminal.clone();
-            self.terminal.draw( move |frame|{
+            // let term = self.terminal.clone();
+            terminal.draw( move |frame|{
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
                     .margin(2)
@@ -120,7 +117,7 @@ impl<'a> App<'a> {
                         ]
                             .as_ref(),
                     )
-                    .split(term.size().expect("can size terminal"));
+                    .split(terminal.size().expect("can size terminal"));
 
                 // Copyright section
                 let copyright = Paragraph::new("Library DB 2023 - all rights reserved")
@@ -221,7 +218,7 @@ impl<'a> App<'a> {
                 Some(AppEvent::Input(event)) => match event.code {
                     KeyCode::Char('q') => {
                         disable_raw_mode().expect("can disable raw mode");
-                        self.terminal.show_cursor().expect("can show cursor");
+                        terminal.show_cursor().expect("can show cursor");
                         exit(0);
                     }
                     KeyCode::Char('h') => self.active_menu_item = MenuItem::Home,
@@ -239,9 +236,9 @@ impl<'a> App<'a> {
         }
     }
 
-    fn read_db() -> Result<Vec<Book>, io::Error> {
-        let db_content = fs::read_to_string(DB_PATH)?;
-        let parsed: Vec<Book> = serde_json::from_str(&db_content)?;
+    async fn read_db() -> Result<Vec<Book>, tokio::io::Error> {
+        let db_content = fs::read_to_string(&DB_PATH).await?;
+        let parsed: Vec<Book> = serde_json::from_str(&db_content).unwrap();
         Ok(parsed)
     }
 
@@ -418,21 +415,19 @@ impl<'a> App<'a> {
         );
         home
     }
-
-
 }
 
-impl<'a> Drop for App<'a> {
-    fn drop(&mut self) {
-        self.terminal.show_cursor().unwrap();
-        if !is_raw_mode_enabled().unwrap() {
-            return;
-        }
-        disable_raw_mode().unwrap();
-        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)
-            .unwrap();
-    }
-}
+// impl<'a> Drop for App<'a> {
+//     fn drop(&mut self) {
+//         self.terminal.show_cursor().unwrap();
+//         if !is_raw_mode_enabled().unwrap() {
+//             return;
+//         }
+//         disable_raw_mode().unwrap();
+//         execute!(terminal.backend_mut(), LeaveAlternateScreen)
+//             .unwrap();
+//     }
+// }
 
 
 
