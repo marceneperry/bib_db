@@ -3,11 +3,12 @@ mod ui;
 mod app;
 mod db;
 
+use std::error::Error;
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
-use crossterm::terminal::{enable_raw_mode, EnterAlternateScreen};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::prelude::CrosstermBackend;
-use ratatui::Terminal;
-use tokio::io;
+use ratatui::{Terminal};
 use crate::{
     app::{App},
 };
@@ -20,25 +21,29 @@ const DB_PATH: &str = "bibliographic_db/db.json";
 
 
 
-#[tokio::main]
-async fn main() {
-
+fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
-    enable_raw_mode().expect("can enable raw mode");
-    let mut stderr = std::io::stderr(); // This is a special case. Normally using stdout is fine
-    execute!(stderr, EnterAlternateScreen);
-    let backend = CrosstermBackend::new(stderr);
-    let mut terminal = Terminal::new(backend).expect("can run terminal");
+    enable_raw_mode()?; // .expect("can enable raw mode");
+    let mut stdout = std::io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?; //.unwrap();
+    terminal.clear()?; //.unwrap();
 
-    // create app and run it... moved rest to App::new()
+    // create app and run it
     let mut app = App::new();
+    let res = app.run(&mut terminal);
 
-    app.expect("can run app").run(&mut terminal).await
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{err:?}");
+    }
+
+    Ok(())
 }
 
 
-
-
-// async fn run_app<B: Backend>(terminal: &mut Terminal<B>, _app: App<'_>) {
-//
-// }
