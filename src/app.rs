@@ -2,7 +2,7 @@ use std::sync::{Arc, mpsc, Mutex};
 use std::{io, thread};
 use std::time::{Duration, Instant};
 use crate::db::{Book};
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use crossterm::{event};
 use crossterm::terminal::{disable_raw_mode};
 use ratatui::backend::{Backend};
@@ -15,6 +15,12 @@ use crate::{DB_PATH};
 
 // currently only adding new items. later add ability to search and edit items.
 
+#[derive(Copy, Clone, PartialEq)]
+enum InputMode {
+    Normal,
+    Editing,
+}
+
 pub(crate) enum AppEvent<I> {
     Input(I),
     Tick,
@@ -23,31 +29,89 @@ pub(crate) enum AppEvent<I> {
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum MenuItem {
     Home,
-    Book,
     ShowBooks,
     NewBook,
-    Article,
     ListArticles,
     InsertArticle,
 }
+
 
 pub struct App<'a> {
     pub menu_titles: Vec<&'a str>,
     pub index: usize,
     active_menu_item: MenuItem,
     pub book_list_state: Arc<Mutex<ListState>>,
+    input: String,
+    data: Vec<String>,
+    cursor_position: usize,
 }
 
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
             App {
-                menu_titles: vec!["Home", "Books", "Show Books", "New Book", "Articles", "List Articles", "Insert Articles", "Quit"],
+                menu_titles: vec!["Home", "Show Books", "New Book", "List Articles", "Insert Articles", "Quit"],
                 index: 0,
                 active_menu_item: MenuItem::Home,
                 book_list_state: Arc::new(Mutex::new(ListState::default())),
+                input: String::new(),
+                data: Vec::new(),
+                cursor_position: 0,
             }
     }
 
+    // Editor functions used from: https://github.com/ratatui-org/ratatui/blob/main/examples/user_input.rs
+    fn move_cursor_left(&mut self) {
+        let cursor_moved_left = self.cursor_position.saturating_sub(1);
+        self.cursor_position = self.clamp_cursor(cursor_moved_left);
+    }
+
+    fn move_cursor_right(&mut self) {
+        let cursor_moved_right = self.cursor_position.saturating_add(1);
+        self.cursor_position = self.clamp_cursor(cursor_moved_right);
+    }
+
+    fn enter_char(&mut self, new_char: char) {
+        self.input.insert(self.cursor_position, new_char);
+
+        self.move_cursor_right();
+    }
+
+    fn delete_char(&mut self) {
+        let is_not_cursor_leftmost = self.cursor_position != 0;
+        if is_not_cursor_leftmost {
+            // Method "remove" is not used on the saved text for deleting the selected char.
+            // Reason: Using remove on String works on bytes instead of the chars.
+            // Using remove would require special care because of char boundaries.
+
+            let current_index = self.cursor_position;
+            let from_left_to_current_index = current_index - 1;
+
+            // Getting all characters before the selected character.
+            let before_char_to_delete = self.input.chars().take(from_left_to_current_index);
+            // Getting all characters after selected character.
+            let after_char_to_delete = self.input.chars().skip(current_index);
+
+            // Put all characters together except the selected one.
+            // By leaving the selected one out, it is forgotten and therefore deleted.
+            self.input = before_char_to_delete.chain(after_char_to_delete).collect();
+            self.move_cursor_left();
+        }
+    }
+
+    fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
+        new_cursor_pos.clamp(0, self.input.len())
+    }
+
+    fn reset_cursor(&mut self) {
+        self.cursor_position = 0;
+    }
+    fn submit_data(&mut self) {
+        self.data.push(self.input.clone());
+        self.input.clear();
+        self.reset_cursor();
+    }
+
+    // Iterating menu functions
     pub fn next(&mut self) {
         self.index = (self.index + 1) % self.menu_titles.len();
     }
@@ -60,6 +124,7 @@ impl<'a> App<'a> {
         }
     }
 
+    // Run the terminal loop with event handlers
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         // setup mpsc to handle the channels in the rendering loop
         let (tx, rx) = mpsc::channel();
@@ -85,12 +150,16 @@ impl<'a> App<'a> {
             }
         });
 
+        // Create an empty `TextArea` instances which manages the editor state
+        let mut text_area = App::render_add_book();
+
+
         loop {
-            // let term = self.terminal.clone();
             let terminal_size = terminal.size().expect("can size terminal");
             let menu_titles = self.menu_titles.iter().cloned();
             let active_menu_item = self.active_menu_item;
             let book_list_state = self.book_list_state.clone();
+            let text_widget = text_area.widget();
             terminal.draw( move |frame|{
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
@@ -147,9 +216,6 @@ impl<'a> App<'a> {
                 // Change to a different menu item
                 match active_menu_item {
                     MenuItem::Home => frame.render_widget(App::render_home(), chunks[1]),
-
-                    MenuItem::Book => frame.render_widget(App::render_book_page(), chunks[1]),
-
                     MenuItem::ShowBooks => {
                         book_list_state.lock().expect("can lock state").select(Some(0));
                         let book_chunks = Layout::default()
@@ -167,64 +233,72 @@ impl<'a> App<'a> {
                         frame.render_widget(right, book_chunks[1]);
 
                     }
-
                     MenuItem::NewBook => {
-                        let book_chunks = Layout::default()
-                            .direction(Direction::Horizontal)
-                            .constraints(
-                                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
-                            )
-                            .split(chunks[1]);
 
-                        let text_area = App::render_add_book();
-
-
-                        let widget = text_area.widget();
-
-                        frame.render_widget(widget, book_chunks[1]);
+                        frame.render_widget(text_widget, chunks[1]);
 
                         // todo! take input and save to db
-                        // match crossterm::event::read().expect("can read tui text_area").into() {
-                        //     Input { KeyCode::Esc } => {},
-                        //     input => {
-                        //         text_area.input(input);
-                        //     }
-                        // }
-                    }
 
-                    MenuItem::Article => {}
+
+                    }
                     MenuItem::ListArticles => {}
                     MenuItem::InsertArticle => {}
                 }
-            })?; //.expect("can finish terminal");
 
+            })?;
 
             match rx.recv().expect("can receive") {
-               AppEvent::Input(event) => match event.code {
-                    KeyCode::Char('q') => {
-                        disable_raw_mode().expect("can disable raw mode");
-                        terminal.show_cursor().expect("can show cursor");
-                        break;
-                    }
-                    KeyCode::Char('h') => self.active_menu_item = MenuItem::Home,
-                    KeyCode::Char('b') => self.active_menu_item = MenuItem::Book,
-                    KeyCode::Char('s') => self.active_menu_item = MenuItem::ShowBooks,
-                    KeyCode::Char('n') => self.active_menu_item = MenuItem::NewBook,
-                    KeyCode::Char('a') => self.active_menu_item = MenuItem::Article,
-                    KeyCode::Char('l') => self.active_menu_item = MenuItem::ListArticles,
-                    KeyCode::Char('i') => self.active_menu_item = MenuItem::InsertArticle,
+                AppEvent::Input(event) => match event.code {
+                    KeyCode::Char('q') if KeyModifiers::CONTROL == event.modifiers => {
+                            disable_raw_mode().expect("can disable raw mode");
+                            terminal.show_cursor().expect("can show cursor");
+                            break;
+                        },
+                    KeyCode::Char('h') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::Home},
+                    KeyCode::Char('s') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::ShowBooks},
+                    KeyCode::Char('n') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::NewBook},
+                    KeyCode::Char('l') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::ListArticles},
+                    KeyCode::Char('i') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::InsertArticle},
+
+                    KeyCode::Enter => self.submit_data(),
+                    KeyCode::Char(to_insert) => {self.enter_char(to_insert)},
+                    KeyCode::Backspace => {self.delete_char()},
+                    KeyCode::Left => {self.move_cursor_left()},
+                    KeyCode::Right => {self.move_cursor_right()},
+                    KeyCode::Esc => {self.active_menu_item = MenuItem::Home},
+
+                    // KeyCode::Down => {
+                    //     // Need to hold current amount of books in shared memory and access that.
+                    //     // if let Some(selected) = book_list_state.clone().selected() {
+                    //     //     let amount_books = App::read_db().expect("can fetch book list").len();
+                    //     //     if selected >= amount_books - 1 {
+                    //     //         book_list_state.select(Some(0));
+                    //     //     } else {
+                    //     //         book_list_state.select(Some(selected + 1));
+                    //     //     }
+                    //     // }
+                    // }
+                    // KeyCode::Up => {
+                    //     // if let Some(selected) = book_list_state.clone().selected() {
+                    //     //     let amount_books = App::read_db().expect("can fetch book list").len();
+                    //     //     if selected > 0 {
+                    //     //         book_list_state.select(Some(selected - 1));
+                    //     //     } else {
+                    //     //         book_list_state.select(Some(amount_books - 1));
+                    //     //     }
+                    //     // }
+                    // }
                     _ => {}
                 },
+                // AppEvent::Editing(event) => {},
                 AppEvent::Tick => {}
             }
         }
         Ok(())
-        // Ok::<(), Error>(()).unwrap()
-        // Err(Error)
 
     }
 
-    fn read_db() -> Result<Vec<Book>, std::io::Error> {
+    fn read_db() -> Result<Vec<Book>, io::Error> {
         let db_content = std::fs::read_to_string(&DB_PATH).unwrap();
         let parsed: Vec<Book> = serde_json::from_str(&db_content).unwrap();
         Ok(parsed)
@@ -367,7 +441,11 @@ impl<'a> App<'a> {
                 Style::default().fg(Color::LightBlue),
             )]),
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("Press 'b' to access Books, 'a' to access Articles.")]),
+            Line::from(vec![Span::raw("Press 'Ctrl-S' to Show a list of books")]),
+            Line::from(vec![Span::raw("Press 'Ctrl-B' to add a new Book")]),
+            Line::from(vec![Span::raw("Press 'Ctrl-L' to show a List of articles")]),
+            Line::from(vec![Span::raw("Press 'Ctrl-A' to add a new Article")]),
+            Line::from(vec![Span::raw("Press 'Ctrl-Q' to Quit")]),
         ])
         .alignment(Alignment::Center)
         .block(

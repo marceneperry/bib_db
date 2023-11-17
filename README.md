@@ -58,3 +58,11 @@ These tables should be implemented later on as necessary
 Add other item types: such as 'Audiobook', 'OnlineResource', 'Photograph', 'Painting', etc.
 
 Add catalog searching, editing and indexing of items
+
+## Resources used to build the application
+- Ratatui: https://docs.rs/ratatui/latest/ratatui/
+- input example that I loosely based my editor box on: https://github.com/ratatui-org/ratatui/blob/main/examples/user_input.rs
+
+- This was the basis for setting up the terminal and render loop for the TUI.  I had to change a lot of things to fit my needs. I also refactored it so that it was not all in a main function.
+https://blog.logrocket.com/rust-and-tui-building-a-command-line-interface-in-rust/#handlinginputintui
+- 
