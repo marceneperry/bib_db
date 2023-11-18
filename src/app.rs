@@ -2,8 +2,9 @@ use std::sync::{Arc, mpsc, Mutex};
 use std::{io, thread};
 use std::time::{Duration, Instant};
 use crate::db::{Book};
-use crossterm::event::{Event, KeyCode, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::{event};
+// use crossterm::event::Event::Key;
 use crossterm::terminal::{disable_raw_mode};
 use ratatui::backend::{Backend};
 use ratatui::{Terminal};
@@ -49,7 +50,7 @@ pub struct App<'a> {
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
             App {
-                menu_titles: vec!["Home", "Show Books", "New Book", "List Articles", "Insert Articles", "Quit"],
+                menu_titles: vec!["Home", "Show Books", "Book Add", "List Articles", "Article Add", "Quit"],
                 index: 0,
                 active_menu_item: MenuItem::Home,
                 book_list_state: Arc::new(Mutex::new(ListState::default())),
@@ -69,6 +70,11 @@ impl<'a> App<'a> {
         let cursor_moved_right = self.cursor_position.saturating_add(1);
         self.cursor_position = self.clamp_cursor(cursor_moved_right);
     }
+
+    // fn move_cursor_down(&mut self) {
+    //     let cursor_moved_down = self.cursor_position.
+    // }
+
 
     fn enter_char(&mut self, new_char: char) {
         self.input.insert(self.cursor_position, new_char);
@@ -128,18 +134,17 @@ impl<'a> App<'a> {
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         // setup mpsc to handle the channels in the rendering loop
         let (tx, rx) = mpsc::channel();
-        let tick_rate = Duration::from_millis(100);
+        let tick_rate = Duration::from_millis(200);
         thread::spawn(move || {
             let mut last_tick = Instant::now();
+            // let mut counter = 0;
             loop {
                 let timeout = tick_rate
                     .checked_sub(last_tick.elapsed())
                     .unwrap_or_else(|| Duration::from_secs(0));
 
-                if event::poll(timeout).expect("poll works") {
-                    if let Event::Key(key) = event::read().expect("can read events") {
+                if let Event::Key(key) = event::read().expect("can read events") {
                         tx.send(AppEvent::Input(key)).expect("can send events");
-                    }
                 }
 
                 if last_tick.elapsed() >= tick_rate {
@@ -189,6 +194,7 @@ impl<'a> App<'a> {
                 frame.render_widget(copyright, chunks[2]);
 
                 // Main menu section
+                // todo! change underlined letter on menu bar?
                 let menu = menu_titles
                     .map(|t| {
                         let (first, rest) = t.split_at(1);
@@ -196,7 +202,7 @@ impl<'a> App<'a> {
                             Span::styled(
                                 first,
                                 Style::default()
-                                    .fg(Color::Yellow)
+                                    .fg(Color::Rgb(35, 70, 184))
                                     .add_modifier(Modifier::UNDERLINED),
                             ),
                             Span::styled(rest, Style::default().fg(Color::White)),
@@ -208,14 +214,14 @@ impl<'a> App<'a> {
                     .select(active_menu_item as usize)
                     .block(Block::default().title("Menu").borders(Borders::ALL))
                     .style(Style::default().fg(Color::White))
-                    .highlight_style(Style::default().fg(Color::Yellow))
+                    .highlight_style(Style::default().fg(Color::Rgb(35, 70, 184)))
                     .divider(Span::raw("|"));
 
                 frame.render_widget(tabs, chunks[0]);
 
                 // Change to a different menu item
                 match active_menu_item {
-                    MenuItem::Home => frame.render_widget(App::render_home(), chunks[1]),
+                    MenuItem::Home => {frame.render_widget(App::render_home(), chunks[1])},
                     MenuItem::ShowBooks => {
                         book_list_state.lock().expect("can lock state").select(Some(0));
                         let book_chunks = Layout::default()
@@ -234,12 +240,17 @@ impl<'a> App<'a> {
 
                     }
                     MenuItem::NewBook => {
-
-                        frame.render_widget(text_widget, chunks[1]);
-
-                        // todo! take input and save to db
-
-
+                        //
+                        // frame.render_widget(text_widget, chunks[1]);
+                        //
+                        // // todo! take input and save to db
+                        // //     match crossterm::event::read().expect("can read input") {
+                        // //         // Input { key: Key::Esc, .. } => break,
+                        // //         input => {
+                        // //             text_area.input(input);
+                        // //         }
+                        // //     }
+                        //
                     }
                     MenuItem::ListArticles => {}
                     MenuItem::InsertArticle => {}
@@ -254,11 +265,11 @@ impl<'a> App<'a> {
                             terminal.show_cursor().expect("can show cursor");
                             break;
                         },
-                    KeyCode::Char('h') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::Home},
+                    KeyCode::Char('h') if KeyModifiers::ALT == event.modifiers => {self.active_menu_item = MenuItem::Home},
                     KeyCode::Char('s') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::ShowBooks},
-                    KeyCode::Char('n') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::NewBook},
+                    KeyCode::Char('b') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::NewBook},
                     KeyCode::Char('l') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::ListArticles},
-                    KeyCode::Char('i') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::InsertArticle},
+                    KeyCode::Char('a') if KeyModifiers::CONTROL == event.modifiers => {self.active_menu_item = MenuItem::InsertArticle},
 
                     KeyCode::Enter => self.submit_data(),
                     KeyCode::Char(to_insert) => {self.enter_char(to_insert)},
@@ -290,7 +301,6 @@ impl<'a> App<'a> {
                     // }
                     _ => {}
                 },
-                // AppEvent::Editing(event) => {},
                 AppEvent::Tick => {}
             }
         }
@@ -325,6 +335,7 @@ impl<'a> App<'a> {
 
         let mut textarea = TextArea::new(lines);
         textarea.set_block(new_book);
+        // textarea = io::BufWriter::new()
         textarea
     }
 
@@ -441,6 +452,8 @@ impl<'a> App<'a> {
                 Style::default().fg(Color::LightBlue),
             )]),
             Line::from(vec![Span::raw("")]),
+            Line::from(vec![Span::raw("To return to this Home page pres 'Alt-M'")]),
+            Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::raw("Press 'Ctrl-S' to Show a list of books")]),
             Line::from(vec![Span::raw("Press 'Ctrl-B' to add a new Book")]),
             Line::from(vec![Span::raw("Press 'Ctrl-L' to show a List of articles")]),
@@ -482,3 +495,57 @@ impl<'a> App<'a> {
         home
     }
 }
+
+//
+// macro_rules! error {
+//     ($fmt: expr $(, $args:tt)*) => {{
+//         Err(io::Error::new(io::ErrorKind::Other, format!($fmt $(, $args)*)))
+//     }};
+// }
+//
+// struct Buffer<'a> {
+//     textarea: TextArea<'a>,
+//     path: PathBuf,
+//     modified: bool,
+// }
+//
+// impl<'a> Buffer<'a> {
+//     fn new() -> io::Result<Self> {
+//         // let mut stream = BufWriter::new(stdout()); // todo! maybe change to terminal?
+//         let mut textarea = if let Ok(md) = path.metadata() {
+//             if md.is_file() {
+//                 let mut textarea = io::BufReader::new(fs::File::open(&path)?)
+//                     .lines()
+//                     .collect::<io::Result<_>>()?;
+//                 if textarea.lines().iter().any(|l| l.starts_with('\t')) {
+//                     textarea.set_hard_tab_indent(true);
+//                 }
+//                 textarea
+//             } else {
+//                 return error!("{:?} is not a file", path);
+//             }
+//         } else {
+//             TextArea::default()
+//         };
+//         textarea.set_line_number_style(Style::default().fg(Color::Blue));
+//         Ok(Self {
+//             textarea,
+//             path,
+//             modified: false,
+//         })
+//     }
+//
+//     fn save(&mut self) -> io::Result<()> {
+//         if !self.modified {
+//             return Ok(());
+//         }
+//         let mut f = io::BufWriter::new(fs::File::create(&self.path)?);
+//         for line in self.textarea.lines() {
+//             f.write_all(line.as_bytes())?;
+//             f.write_all(b"\n")?;
+//         }
+//         self.modified = false;
+//         Ok(())
+//     }
+//
+// }
