@@ -20,15 +20,14 @@ use crate::{DB_PATH};
 
 // currently only adding new items. later add ability to search and edit items.
 
-struct TextState {
 
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum InputMode {
+    Command,
+    Input,
 }
 
-#[derive(Copy, Clone, PartialEq)]
-enum InputMode {
-    Normal,
-    Editing,
-}
+// Need to know which MenuItem is the focus for input
 
 #[derive(Debug)]
 pub(crate) enum AppEvent<I> {
@@ -40,20 +39,28 @@ pub(crate) enum AppEvent<I> {
 pub(crate) enum MenuItem {
     Home,
     ShowBooks,
-    NewBook,
+    NewBook(InputMode),
     ListArticles,
-    InsertArticle,
+    InsertArticle(InputMode),
 }
 
+impl MenuItem {
+    fn ordinal(&self) -> usize {
+        match self {
+            MenuItem::Home => 0,
+            MenuItem::ShowBooks => 1,
+            MenuItem::NewBook(_) => 2,
+            MenuItem::ListArticles => 3,
+            MenuItem::InsertArticle(_) => 4,
+        }
+    }
+}
 
 pub struct App<'a> {
     pub menu_titles: Vec<&'a str>,
     pub index: usize,
     active_menu_item: MenuItem,
     pub book_list_state: Arc<Mutex<ListState>>,
-    // input: String,
-    // data: Vec<String>,
-    // cursor_position: usize,
 }
 
 impl<'a> App<'a> {
@@ -63,9 +70,6 @@ impl<'a> App<'a> {
             index: 0,
             active_menu_item: MenuItem::Home,
             book_list_state: Arc::new(Mutex::new(ListState::default())),
-            // input: String::new(),
-            // data: Vec::new(),
-            // cursor_position: 0,
         }
     }
 
@@ -112,11 +116,11 @@ impl<'a> App<'a> {
         // Create an empty `TextArea` instance which manages the editor state
         let new_book = Block::default()
             .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White))
-            .title("New Book")
+            .style(Style::default().fg(Color::LightCyan))
+            .title("New Book:     Press 'Alt-i' to enter edit mode and 'Alt-x' to exit edit mode")
             .border_type(BorderType::Plain);
-        let mut text_area = TextArea::default();
-        text_area.set_block(new_book);
+        let mut book_text_area = TextArea::default();
+        book_text_area.set_block(new_book);
 
 
         loop {
@@ -124,13 +128,13 @@ impl<'a> App<'a> {
             let menu_titles = self.menu_titles.iter().cloned();
             let active_menu_item = self.active_menu_item;
             let book_list_state = self.book_list_state.clone();
-            let text_widget = text_area.widget();
+            let text_widget = book_text_area.widget();
 
             terminal.draw( move |frame|{
                 let chunks = App::panes(terminal_size);
 
                 // Main menu section
-                frame.render_widget(App::menu(menu_titles, active_menu_item as usize), chunks[0]);
+                frame.render_widget(App::menu(menu_titles, active_menu_item.ordinal()), chunks[0]);
 
                 // Change to a different menu item
                 match active_menu_item {
@@ -156,11 +160,11 @@ impl<'a> App<'a> {
                         frame.render_widget(right, book_chunks[1]);
                         drop(lock);
                     }
-                    MenuItem::NewBook => {
+                    MenuItem::NewBook(..) => {
                         let book_panes = Layout::default()
                             .direction(Direction::Horizontal)
                             .constraints(
-                                [Constraint::Percentage(10), Constraint::Percentage(90)].as_ref(),
+                                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
                             )
                             .split(chunks[1]);
 
@@ -169,7 +173,7 @@ impl<'a> App<'a> {
                         frame.render_widget(text_widget, book_panes[1]);
                     }
                     MenuItem::ListArticles => {}
-                    MenuItem::InsertArticle => {}
+                    MenuItem::InsertArticle(..) => {}
                 }
 
                 // Copyright section
@@ -177,18 +181,25 @@ impl<'a> App<'a> {
             })?;
 
             match rx.recv().unwrap() {
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('q'), modifiers,  ..})) if KeyModifiers::CONTROL == modifiers => {
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('q'),  ..})) if self.is_command_mode() => {
                             disable_raw_mode().expect("can disable raw mode");
                             terminal.show_cursor().expect("can show cursor");
                             break;
                 },
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('h'), modifiers,  ..})) if KeyModifiers::ALT == modifiers => {self.active_menu_item = MenuItem::Home}
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('s'), modifiers,  ..})) if KeyModifiers::CONTROL == modifiers => {self.active_menu_item = MenuItem::ShowBooks},
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('b'), modifiers,  ..})) if KeyModifiers::CONTROL == modifiers => {self.active_menu_item = MenuItem::NewBook},
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('l'), modifiers,  ..})) if KeyModifiers::CONTROL == modifiers => {self.active_menu_item = MenuItem::ListArticles},
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('a'), modifiers,  ..})) if KeyModifiers::CONTROL == modifiers => {self.active_menu_item = MenuItem::InsertArticle},
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('s'), modifiers,  ..})) if KeyModifiers::ALT == modifiers => {println!("Lines: {:?}", text_area.lines())},
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Down,  ..})) => {
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('h'), ..})) if self.is_command_mode() => {self.active_menu_item = MenuItem::Home}
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('s'), ..})) if self.is_command_mode() => {self.active_menu_item = MenuItem::ShowBooks},
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('b'), ..})) if self.is_command_mode() => {self.active_menu_item = MenuItem::NewBook(InputMode::Command)},
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('l'), ..})) if self.is_command_mode() => {self.active_menu_item = MenuItem::ListArticles},
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('a'), ..})) if self.is_command_mode() => {self.active_menu_item = MenuItem::InsertArticle(InputMode::Command)},
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('i'), modifiers, ..})) if KeyModifiers::ALT == modifiers && self.is_command_mode() => {
+                    self.enter_input_mode()
+                },
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('x'), modifiers, ..})) if KeyModifiers::ALT == modifiers && !self.is_command_mode() => {
+                    self.exit_input_mode()
+                },
+
+                // AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('s'), modifiers,  ..})) if KeyModifiers::ALT == modifiers => {println!("Lines: {:?}", book_text_area.lines())},
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Down,  ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
                     if let Some(selected) = lock.selected() {
                         let amount_books = App::read_db().expect("can fetch book list").len();
@@ -200,7 +211,7 @@ impl<'a> App<'a> {
                     }
                     drop(lock);
                 },
-                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Up, ..})) => {
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Up, ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
                     if let Some(selected) = lock.selected() {
                         let amount_books = App::read_db().expect("can fetch book list").len();
@@ -212,11 +223,36 @@ impl<'a> App<'a> {
                     }
                 },
                 AppEvent::Tick => {},
-                AppEvent::Input(input) => { text_area.input(input); },
+                AppEvent::Input(input) if !self.is_command_mode() => { book_text_area.input(input); },
+                // todo! save input to vec/db
+                _ => {}
             };
         }
         Ok(())
 
+    }
+
+    fn enter_input_mode(&mut self) {
+        if let MenuItem::NewBook(InputMode::Command) = self.active_menu_item {
+            self.active_menu_item = MenuItem::NewBook(InputMode::Input)
+        } else if let MenuItem::InsertArticle(InputMode::Command) = self.active_menu_item {
+            self.active_menu_item = MenuItem::InsertArticle(InputMode::Input)
+        }
+    }
+
+    fn exit_input_mode(&mut self) {
+        if let MenuItem::NewBook(InputMode::Input) = self.active_menu_item {
+            self.active_menu_item = MenuItem::NewBook(InputMode::Command)
+        } else if let MenuItem::InsertArticle(InputMode::Input) = self.active_menu_item {
+            self.active_menu_item = MenuItem::InsertArticle(InputMode::Command)
+        }
+    }
+
+    fn is_command_mode(&self) -> bool {
+        match self.active_menu_item {
+            MenuItem::NewBook(InputMode::Input) | MenuItem::InsertArticle(InputMode::Input) => false,
+            _ => true
+        }
     }
 
     fn read_db() -> Result<Vec<Book>, io::Error> {
