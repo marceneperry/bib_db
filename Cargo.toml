@@ -12,6 +12,12 @@ serde = { version = "1.0.181", features = ["derive"] }
 serde_json = "1.0.104"
 tui-textarea = "^0.3.0"
 sqlite = "0.32.0"
+#sqlx = {version = "0.7.0", features = ["runtime-tokio", "tls-native-tls"] }
+#tokio = {version = "1.30.0"}
+
+#diesel = {version = "2.1.0", features = ["sqlite"]}
+#dotenvy = "0.15.7"
+#libsqlite3-sys = {version = "0.26.0", features = ["bundled"]}
 
 
 [dependencies.uuid]
