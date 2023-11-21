@@ -1,5 +1,5 @@
 use std::sync::{Arc, mpsc, Mutex};
-use std::{io, thread};
+use std::{thread};
 use std::io::Error;
 use std::iter::Cloned;
 use std::rc::Rc;
@@ -27,7 +27,6 @@ pub(crate) enum InputMode {
     Input,
 }
 
-// Need to know which MenuItem is the focus for input
 
 #[derive(Debug)]
 pub(crate) enum AppEvent<I> {
@@ -93,12 +92,7 @@ impl<'a> App<'a> {
         let tick_rate = Duration::from_millis(200);
         thread::spawn(move || {
             let mut last_tick = Instant::now();
-            // let mut counter = 0;
             loop {
-                let timeout = tick_rate
-                    .checked_sub(last_tick.elapsed())
-                    .unwrap_or_else(|| Duration::from_secs(0));
-
                 if let Event::Key(key) = event::read().expect("can read events") {
                         if key.kind == KeyEventKind::Press {
                             tx.send(AppEvent::Input(Event::Key(key))).expect("can send events");
@@ -117,10 +111,10 @@ impl<'a> App<'a> {
         let new_book = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::LightCyan))
-            .title("New Book:     Press 'Alt-i' to enter edit mode and 'Alt-x' to exit edit mode")
+            .title("New Book:     Press 'Alt-i' to enter edit mode and 'Alt-x' to exit edit mode     ")
             .border_type(BorderType::Plain);
         let mut book_text_area = TextArea::default();
-        book_text_area.set_block(new_book);
+        book_text_area.set_block(new_book.clone());
 
 
         loop {
@@ -128,7 +122,7 @@ impl<'a> App<'a> {
             let menu_titles = self.menu_titles.iter().cloned();
             let active_menu_item = self.active_menu_item;
             let book_list_state = self.book_list_state.clone();
-            let text_widget = book_text_area.widget();
+            let book_text_widget = book_text_area.widget();
 
             terminal.draw( move |frame|{
                 let chunks = App::panes(terminal_size);
@@ -170,7 +164,7 @@ impl<'a> App<'a> {
 
 
                         frame.render_widget(App::render_add_book(), book_panes[0]);
-                        frame.render_widget(text_widget, book_panes[1]);
+                        frame.render_widget(book_text_widget, book_panes[1]);
                     }
                     MenuItem::ListArticles => {}
                     MenuItem::InsertArticle(..) => {}
@@ -198,7 +192,11 @@ impl<'a> App<'a> {
                     self.exit_input_mode()
                 },
 
-                // AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('s'), modifiers,  ..})) if KeyModifiers::ALT == modifiers => {println!("Lines: {:?}", book_text_area.lines())},
+                AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('p'), modifiers,  ..})) if KeyModifiers::CONTROL == modifiers => {
+                    self.save_as_item_type(&book_text_area);
+                    book_text_area = TextArea::default();
+                    book_text_area.set_block(new_book.clone());
+                },
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Down,  ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
                     if let Some(selected) = lock.selected() {
@@ -224,7 +222,6 @@ impl<'a> App<'a> {
                 },
                 AppEvent::Tick => {},
                 AppEvent::Input(input) if !self.is_command_mode() => { book_text_area.input(input); },
-                // todo! save input to vec/db
                 _ => {}
             };
         }
@@ -232,6 +229,19 @@ impl<'a> App<'a> {
 
     }
 
+    fn save_as_item_type(&mut self, text_area: &TextArea) {
+        if let MenuItem::NewBook(_) = self.active_menu_item {
+            // println!("{:?}", text_area.lines());
+            let mut text_vec = Vec::new();
+            for line in text_area.lines() {
+                text_vec.push(line.to_string());
+            }
+            Book::book_transaction(text_vec);
+
+        } else if let MenuItem::InsertArticle(_) = self.active_menu_item {
+            println!("{:?}", text_area.lines());
+        }
+    }
     fn enter_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Command) = self.active_menu_item {
             self.active_menu_item = MenuItem::NewBook(InputMode::Input)
@@ -255,29 +265,41 @@ impl<'a> App<'a> {
         }
     }
 
-    fn read_db() -> Result<Vec<Book>, io::Error> {
+    fn read_db() -> Result<Vec<Book>, Error> {
         let db_content = std::fs::read_to_string(&DB_PATH).unwrap();
         let parsed: Vec<Book> = serde_json::from_str(&db_content).unwrap();
         Ok(parsed)
     }
 
     fn render_add_book() -> Paragraph<'a> {
-        let index = Paragraph::new(vec![
+        return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::styled("Title: ", Style::default().fg(Color::LightBlue))]),
-            Line::from(vec![Span::styled("Author: ", Style::default().fg(Color::LightBlue))]),
-            Line::from(vec![Span::styled("Pages: ", Style::default().fg(Color::LightBlue))]),
+            Line::from(vec![Span::styled("Title: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Author: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Pages: ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("Volume: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("Edition: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("Series: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("Note: ", Style::default().fg(Color::LightBlue))]),
+            Line::from(vec![Span::styled("Year: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Publisher: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("Required input is red ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Optional input is blue ", Style::default().fg(Color::LightBlue))]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("Press Alt-I to start editing ", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press Alt-X to stop editing ", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press Ctrl-P to save to database ", Style::default().fg(Color::Cyan))]),
         ])
             .alignment(Alignment::Right);
-
-        index
     }
 
     fn render_books(book_list_state: Arc<Mutex<ListState>>) -> (List<'a>, Table<'a>) {
+        // todo! currently using dummy db.json file to render books ---> implement sqlite db rendering;
         let books = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
@@ -374,7 +396,7 @@ impl<'a> App<'a> {
     }
 
     fn render_home() -> Paragraph<'a> {
-        let home = Paragraph::new(vec![
+        return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::raw("Welcome")]),
             Line::from(vec![Span::raw("")]),
@@ -385,15 +407,15 @@ impl<'a> App<'a> {
                 Style::default().fg(Color::LightBlue),
             )]),
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("To return to this Home page pres 'Alt-H'")]),
+            Line::from(vec![Span::raw("To return to this Home page press 'H'")]),
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("Press 'Ctrl-S' to Show a list of books")]),
-            Line::from(vec![Span::raw("Press 'Ctrl-B' to add a new Book")]),
-            Line::from(vec![Span::raw("Press 'Ctrl-L' to show a List of articles")]),
-            Line::from(vec![Span::raw("Press 'Ctrl-A' to add a new Article")]),
-            Line::from(vec![Span::raw("Press 'Ctrl-Q' to Quit")]),
+            Line::from(vec![Span::raw("Press 'S' to Show a list of books")]),
+            Line::from(vec![Span::raw("Press 'B' to add a new Book")]),
+            Line::from(vec![Span::raw("Press 'L' to show a List of articles")]),
+            Line::from(vec![Span::raw("Press 'A' to add a new Article")]),
+            Line::from(vec![Span::raw("Press 'Q' to Quit")]),
         ])
-        .alignment(Alignment::Center)
+        .alignment(Alignment::Left)
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -401,31 +423,6 @@ impl<'a> App<'a> {
                 .title("Home")
                 .border_type(BorderType::Plain),
         );
-        home
-    }
-
-    fn render_book_page() -> Paragraph<'a> {
-        let home = Paragraph::new(vec![
-            Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::styled(
-                "Books Home",
-                Style::default().fg(Color::LightBlue),
-            )]),
-            Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("Press 's' to show a list of Books")]),
-            Line::from(vec![Span::raw("Press 'n' to add a new book.")]),
-        ])
-        .alignment(Alignment::Center)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .style(Style::default().fg(Color::White))
-                .title("Book options")
-                .border_type(BorderType::Plain),
-        );
-        home
     }
 
     fn panes(rect: Rect) -> Rc<[Rect]> {

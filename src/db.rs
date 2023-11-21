@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-// use sqlx::{FromRow, SqlitePool};
-// use uuid::Uuid;
-// use crate::DB_URL;
-// use sqlite::{Row, };
+use uuid::Uuid;
+use crate::DB_URL;
+use sqlite::{State, Value};
 
 
 /// Database Structs and implementations for sql data tables
@@ -10,7 +9,6 @@ use serde::{Deserialize, Serialize};
 pub struct MasterEntries {
     pub(crate) cite_key: String,
     pub(crate) entry_type: String,
-    // pub(crate) connection: SqlitePool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -79,128 +77,120 @@ pub struct Article {
 
 
 
-// /// Struct Traits and Implementations
-// // #[async_trait]
-// pub trait TableInsert {
-//     fn insert(&self) {} // maybe use return type Result<> here?
-// }
-//
-// impl MasterEntries {
-//     pub fn new_book() -> MasterEntries {
-//         let key = Uuid::new_v4().to_string();
-//         MasterEntries {
-//             cite_key: key,
-//             entry_type: "BOOK".parse().unwrap(),
-//         }
-//     }
-//
-//     pub fn new_article() -> MasterEntries {
-//         let key = Uuid::new_v4().to_string();
-//         MasterEntries {
-//             cite_key: key,
-//             entry_type: "ARTICLE".parse().unwrap()
-//         }
-//     }
-// }
-//
-// // #[async_trait]
-// impl TableInsert for MasterEntries {
-//     fn insert(&self) {
-//         let db = SqlitePool::connect(DB_URL).unwrap();
-//         let result = sqlx::query("INSERT INTO master_entries (cite_key, entry_type) VALUES (?,?,)")
-//                 .bind(&self.cite_key)
-//                 .bind(&self.entry_type)
-//                 .execute(&*db);
-//
-//             match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//             };
-//     }
-// }
-//
-// impl Book {
-//     /// Create and Add book to SQLite database
-//     fn book_transaction() {
-//         let master = MasterEntries::new_book();
-//         let publisher = Publisher::new();
-//         let year = String::new();
-//         let m_y = MonthYear::new(year);
-//         let book_id = Uuid::new_v4().to_string();
-//         let book = Book {
-//             book_id,
-//             cite_key: master.cite_key.clone(),
-//             publisher_id: publisher.publisher_id.clone(),
-//             month_year_id: m_y.month_year_id.clone(),
-//             author: String::new(),
-//             title: String::new(),
-//             pages: String::new(),
-//             volume: String::new(),
-//             edition: String::new(),
-//             series: String::new(),
-//             note: String::new(),
-//         };
-//
-//         // master.insert();
-//         // book.insert();
-//         // publisher.insert();
-//         // m_y.insert();
-//     }
-// }
-//
-// // #[async_trait]
-// impl TableInsert for Book {
-//     fn insert(&self) {
-//         let db = sqlite::open(DB_URL).unwrap();
-//         let result = sqlite::  ("INSERT INTO book (book_id, cite_key, publisher_id, month_year_id, editor, title, pages, volume, edition, series, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,)")
-//             .bind(&self.book_id)
-//             .bind(&self.cite_key)
-//             .bind(&self.publisher_id)
-//             .bind(&self.month_year_id)
-//             .bind(&self.author)
-//             .bind(&self.title)
-//             .bind(&self.pages)
-//             .bind(&self.volume)
-//             .bind(&self.edition)
-//             .bind(&self.series)
-//             .bind(&self.note)
-//             .execute(&*db);
-//
-//         match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//         };
-//     }
-// }
-//
-//
-// impl MonthYear {
-//     pub fn new(year: String) -> MonthYear {
-//         let month_year_id = Uuid::new_v4().to_string();
-//         MonthYear {
-//             month_year_id,
-//             month: String::new(),
-//             year,
-//         }
-//     }
-// }
-//
-// // #[async_trait]
-// impl TableInsert for MonthYear {
-//     fn insert(&self) {
-//         let db = SqlitePool::connect(DB_URL).unwrap();
-//         let result = sqlx::query("INSERT INTO month_year (month_year_id, month, year) VALUES (?,?,?,)")
-//             .bind(&self.month_year_id)
-//             .bind(&self.month)
-//             .bind(&self.year)
-//             .execute(&*db);
-//
-//         match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//         };
-//     }
-// }
+/// Struct Traits and Implementations
+pub trait TableInsert {
+    fn insert(&self) -> sqlite::Result<State>;
+}
+
+impl MasterEntries {
+    pub fn new_book() -> MasterEntries {
+        let key = Uuid::new_v4().to_string();
+        MasterEntries {
+            cite_key: key,
+            entry_type: "BOOK".parse().unwrap(),
+        }
+    }
+
+    pub fn new_article() -> MasterEntries {
+        let key = Uuid::new_v4().to_string();
+        MasterEntries {
+            cite_key: key,
+            entry_type: "ARTICLE".parse().unwrap()
+        }
+    }
+}
+
+impl TableInsert for MasterEntries {
+    fn insert(&self) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "INSERT INTO master_entries VALUES (:cite_key, :entry_type)";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+            (":cite_key", self.cite_key.clone().into()),
+            (":entry_type", self.entry_type.clone().into()),
+        ]).expect("can bind_iter");
+        statement.next()
+    }
+}
+
+impl Book {
+    /// Create and Add book to SQLite database
+    pub fn book_transaction(textarea: Vec<String>) {
+        let master = MasterEntries::new_book();
+        let publisher = Publisher::new(textarea.clone());
+        let year = textarea[7].clone();
+        let m_y = MonthYear::new(year);
+        let book_id = Uuid::new_v4().to_string();
+        let book = Book {
+            book_id,
+            cite_key: master.cite_key.clone(),
+            publisher_id: publisher.publisher_id.clone(),
+            month_year_id: m_y.month_year_id.clone(),
+            author: textarea[0].clone(),
+            title: textarea[1].clone(),
+            pages: textarea[2].clone(),
+            volume: textarea[3].clone(),
+            edition: textarea[4].clone(),
+            series: textarea[5].clone(),
+            note: textarea[6].clone(),
+        };
+
+        // todo! make these a transaction so that if one of the insert()'s fail it will rollback; probably use rusqlite crate instead of sqlite crate and refactor
+        let _ = master.insert();
+        let _ = book.insert();
+        let _ = publisher.insert();
+        let _ = m_y.insert();
+
+    }
+}
+
+impl TableInsert for Book {
+    fn insert(&self) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "INSERT INTO book VALUES (:book_id, :cite_key, :publisher_id, :month_year_id, :author, :title, :pages, :volume, :edition, :series, :note)";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+            (":book_id", self.book_id.clone().into()),
+            (":cite_key", self.cite_key.clone().into()),
+            (":publisher_id", self.publisher_id.clone().into()),
+            (":month_year_id",self.month_year_id.clone().into()),
+            (":author", self.author.clone().into()),
+            (":title", self.title.clone().into()),
+            (":pages", self.pages.clone().into()),
+            (":volume", self.volume.clone().into()),
+            (":edition",self.edition.clone().into()),
+            (":series", self.series.clone().into()),
+            (":note", self.note.clone().into()),
+        ]).unwrap();
+        statement.next()
+    }
+}
+
+
+impl MonthYear {
+    pub fn new(year: String) -> MonthYear {
+        let month_year_id = Uuid::new_v4().to_string();
+        MonthYear {
+            month_year_id,
+            month: String::from("01"),
+            year,
+        }
+    }
+}
+
+impl TableInsert for MonthYear {
+    fn insert(&self) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "INSERT INTO month_year VALUES (:month_year_id, :month, :year)";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+            (":month_year_id", self.month_year_id.clone().into()),
+            (":month", self.month.clone().into()),
+            (":year", self.year.clone().into()),
+        ]).unwrap();
+        statement.next()
+    }
+}
 //
 // impl Article {
 //     /// Create and Add book to SQLite database
@@ -230,7 +220,6 @@ pub struct Article {
 //     }
 // }
 //
-// // #[async_trait]
 // impl TableInsert for Article {
 //     fn insert(&self) {
 //         let db = SqlitePool::connect(DB_URL).unwrap();
@@ -254,37 +243,35 @@ pub struct Article {
 //     }
 // }
 //
-//
-// impl Publisher {
-//     pub fn new() -> Publisher {
-//         let publisher_id = Uuid::new_v4().to_string();
-//         Publisher {
-//             publisher_id,
-//             publisher: String::new(),
-//             address: String::new(),
-//         }
-//     }
-// }
-//
-// // #[async_trait]
-// impl TableInsert for Publisher {
-//     fn insert(&self) {
-//         let db = SqlitePool::connect(DB_URL).unwrap();
-//         let result = sqlx::query("INSERT INTO publisher (publisher_id, publisher, address) VALUES (?,?,?,)")
-//             .bind(&self.publisher_id)
-//             .bind(&self.publisher)
-//             .bind(&self.address)
-//             .execute(&*db);
-//
-//         match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//         };
-//     }
-// }
-
 
 // // Implement later
+//
+impl Publisher {
+    pub fn new(vec: Vec<String>) -> Publisher {
+        let publisher_id = Uuid::new_v4().to_string();
+        Publisher {
+            publisher_id,
+            publisher: vec[7].clone(),
+            address: String::from("n/a"), // This would be a lookup based on the publisher name
+        }
+    }
+}
+
+impl TableInsert for Publisher {
+    fn insert(&self) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "INSERT INTO publisher VALUES (:publisher_id, :publisher, :address)";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+            (":publisher_id", self.publisher_id.clone().into()),
+            (":publisher", self.publisher.clone().into()),
+            (":address", self.address.clone().into()),
+        ]).as_ref().unwrap();
+        statement.next()
+    }
+}
+
+
 // impl Relationship {
 //     pub fn new(master_key: String) -> Relationship {
 //         let parent_id = Uuid::new_v4().to_string();
@@ -297,7 +284,6 @@ pub struct Article {
 //     }
 // }
 //
-// #[async_trait]
 // impl TableInsert for Relationship {
 //     fn insert(&self) {
 //         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
@@ -327,7 +313,6 @@ pub struct Article {
 //     }
 // }
 //
-// #[async_trait]
 // impl TableInsert for Author {
 //     fn insert(&self) {
 //         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
@@ -356,7 +341,6 @@ pub struct Article {
 //     }
 // }
 //
-// #[async_trait]
 // impl TableInsert for Organizations {
 //     fn insert(&self) {
 //         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
