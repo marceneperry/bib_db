@@ -27,7 +27,7 @@ fn init_db() {
         cite_key    TEXT REFERENCES master_entries(cite_key),
         publisher_id TEXT REFERENCES publisher(publisher_id),
         month_year_id TEXT REFERENCES month_year(month_year_id),
-        editor      VARCHAR,
+        author      VARCHAR,
         title       VARCHAR,
         pages       VARCHAR,
         volume      VARCHAR,
