@@ -37,6 +37,10 @@ pub(crate) enum AppEvent<I> {
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum MenuItem {
+    // todo! future version do sub menus:
+    // `Home` `Display All Items` `Books` `Articles` `Quit`
+    // Books: `Display All` `Add New Book` `Delete Book` `Find Book`
+    // Articles: `Display All` `Add New Article` `Delete Article` `Find Article`
     Home,
     ShowBooks,
     NewBook(InputMode),
@@ -144,15 +148,16 @@ impl<'a> App<'a> {
                         let book_chunks = Layout::default()
                             .direction(Direction::Horizontal)
                             .constraints(
-                                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
+                                [Constraint::Percentage(20), Constraint::Percentage(8), Constraint::Percentage(80)].as_ref(),
                             )
                             .split(chunks[1]);
 
 
-                        let (left, right) = App::render_books(book_list_state.clone());
+                        let (left, middle, right) = App::render_books(book_list_state.clone());
                         let mut lock = book_list_state.lock().expect("can lock state");
                         frame.render_stateful_widget(left, book_chunks[0],  &mut *lock);
-                        frame.render_widget(right, book_chunks[1]);
+                        frame.render_widget(middle, book_chunks[1]);
+                        frame.render_widget(right, book_chunks[2]);
                         drop(lock);
                     }
                     MenuItem::NewBook(..) => {
@@ -291,13 +296,8 @@ impl<'a> App<'a> {
     }
 
 
-    fn read_db() -> Result<Vec<Book>, Error> {
-        let db_content = std::fs::read_to_string(&DB_PATH).unwrap();
-        let parsed: Vec<Book> = serde_json::from_str(&db_content).unwrap();
-        Ok(parsed)
-    }
-
     fn render_add_book() -> Paragraph<'a> {
+
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled("Title: ", Style::default().fg(Color::LightRed))]),
@@ -324,8 +324,8 @@ impl<'a> App<'a> {
             .alignment(Alignment::Right);
     }
 
-    fn render_books(book_list_state: Arc<Mutex<ListState>>) -> (List<'a>, Table<'a>) {
-        // todo! currently using dummy db.json file to render books ---> implement sqlite db rendering;
+    fn render_books(book_list_state: Arc<Mutex<ListState>>) -> (List<'a>, Paragraph<'a>, Paragraph<'a>) {
+        //todo! change to lines showing data instead of 'bar menu' style
         let books = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
@@ -356,92 +356,65 @@ impl<'a> App<'a> {
                 .add_modifier(Modifier::BOLD),
         );
 
-        let book_detail = Table::new(vec![Row::new(vec![
-            Cell::from(Span::raw(selected_book.book_id)),
-            Cell::from(Span::raw(selected_book.title)),
-            Cell::from(Span::raw(selected_book.author)),
-            Cell::from(Span::raw(selected_book.pages)),
-            Cell::from(Span::raw(selected_book.volume)),
-            Cell::from(Span::raw(selected_book.edition)),
-            Cell::from(Span::raw(selected_book.series)),
-            Cell::from(Span::raw(selected_book.note)),
-        ])])
-        .header(Row::new(vec![
-            Cell::from(Span::styled(
-                "ID",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                "Author",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                "Title",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                "Pages",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                "Volume",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                "Edition",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                "Series",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                "Note",
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-        ]))
-        .block(
-            Block::default()
+        let header = Paragraph::new(vec![
+            Line::from(vec![Span::raw("")]),
+            Line::from(vec![Span::styled("ID ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Author ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Title ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Pages ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Volume ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Edition ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Series ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Note ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            ])
+            .alignment(Alignment::Right)
+            .block(
+                Block::default()
+                .style(Style::default().fg(Color::White))
+                .border_type(BorderType::Plain),
+            );
+
+        let book_detail = Paragraph::new(vec![
+            Line::from(Span::raw(selected_book.book_id)),
+            Line::from(Span::raw(selected_book.title)),
+            Line::from(Span::raw(selected_book.author)),
+            Line::from(Span::raw(selected_book.pages)),
+            Line::from(Span::raw(selected_book.volume)),
+            Line::from(Span::raw(selected_book.edition)),
+            Line::from(Span::raw(selected_book.series)),
+            Line::from(Span::raw(selected_book.note)),
+        ])
+            .alignment(Alignment::Left)
+            .block(
+                Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::White))
                 .title("Book Detail")
                 .border_type(BorderType::Plain),
-        )
-        .widths(&[
-            Constraint::Percentage(5),
-            Constraint::Percentage(20),
-            Constraint::Percentage(20),
-            Constraint::Percentage(5),
-            Constraint::Percentage(5),
-            Constraint::Percentage(10),
-            Constraint::Percentage(15),
-            Constraint::Percentage(20),
-        ]);
+            );
 
-        (list, book_detail)
+        (list, header, book_detail)
     }
 
     fn render_home() -> Paragraph<'a> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("Welcome")]),
-            Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("to")]),
+            Line::from(vec![Span::raw("Welcome to")]),
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled(
                 "Library DB",
                 Style::default().fg(Color::LightBlue),
             )]),
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("To return to this Home page press 'H'")]),
+            Line::from(vec![Span::styled("To return to this Home page press 'H'", Style::default().fg(Color::Cyan))]),
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::raw("Press 'S' to Show a list of books")]),
-            Line::from(vec![Span::raw("Press 'B' to add a new Book")]),
-            Line::from(vec![Span::raw("Press 'L' to show a List of articles")]),
-            Line::from(vec![Span::raw("Press 'A' to add a new Article")]),
-            Line::from(vec![Span::raw("Press 'Q' to Quit")]),
+            Line::from(vec![Span::styled("Press 'S' to Show a list of books", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press 'B' to add a new Book", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press 'L' to show a List of articles", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press 'A' to add a new Article", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press 'Q' to Quit", Style::default().fg(Color::Cyan))]),
         ])
-        .alignment(Alignment::Left)
+        .alignment(Alignment::Center)
         .block(
             Block::default()
                 .borders(Borders::ALL)
