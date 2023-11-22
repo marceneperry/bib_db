@@ -169,9 +169,6 @@ impl<'a> App<'a> {
                     }
                     MenuItem::ListArticles => {}
                     MenuItem::InsertArticle(..) => {}
-                    MenuItem::Read => {
-                        App::read_sqlite_db().expect("can read sqlite db");
-                    }
                 }
 
                 // Copyright section
