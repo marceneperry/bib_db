@@ -5,7 +5,7 @@ use std::iter::Cloned;
 use std::rc::Rc;
 use std::slice::Iter;
 use std::time::{Duration, Instant};
-use crate::db::{Book};
+use crate::db::{Article, Book};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::{event};
 use crossterm::terminal::{disable_raw_mode};
@@ -13,11 +13,12 @@ use ratatui::backend::{Backend};
 use ratatui::{Terminal};
 use ratatui::layout::Rect;
 use ratatui::prelude::{Alignment, Color, Constraint, Direction, Layout, Modifier, Style};
+// use ratatui::prelude::Marker::Block;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, BorderType, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs};
+use ratatui::widgets::{Block, Borders, BorderType, List, ListItem, ListState, Paragraph, Tabs};
 use sqlite::State;
 use tui_textarea::{TextArea};
-use crate::{DB_PATH, DB_URL};
+use crate::{DB_URL};
 
 // currently only adding new items. later add ability to search and edit items.
 
@@ -65,6 +66,7 @@ pub struct App<'a> {
     pub index: usize,
     active_menu_item: MenuItem,
     pub book_list_state: Arc<Mutex<ListState>>,
+    pub article_list_state: Arc<Mutex<ListState>>,
 }
 
 impl<'a> App<'a> {
@@ -74,6 +76,7 @@ impl<'a> App<'a> {
             index: 0,
             active_menu_item: MenuItem::Home,
             book_list_state: Arc::new(Mutex::new(ListState::default())),
+            article_list_state: Arc::new(Mutex::new(ListState::default())),
         }
     }
 
@@ -118,8 +121,18 @@ impl<'a> App<'a> {
             .style(Style::default().fg(Color::LightCyan))
             .title("New Book:     Press 'Alt-i' to enter edit mode and 'Alt-x' to exit edit mode     ")
             .border_type(BorderType::Plain);
+
+        let new_article = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::LightCyan))
+            .title("New Article:     Press 'Alt-i to enter edit mode and 'Alt-x' to exit edit mode     ")
+            .border_type(BorderType::Plain);
+
         let mut book_text_area = TextArea::default();
         book_text_area.set_block(new_book.clone());
+
+        let mut article_text_area = TextArea::default();
+        article_text_area.set_block(new_article.clone());
 
 
         loop {
@@ -127,7 +140,10 @@ impl<'a> App<'a> {
             let menu_titles = self.menu_titles.iter().cloned();
             let active_menu_item = self.active_menu_item;
             let book_list_state = self.book_list_state.clone();
+            let article_list_state = self.article_list_state.clone();
             let book_text_widget = book_text_area.widget();
+            let article_text_widget = article_text_area.widget();
+
 
             terminal.draw( move |frame|{
                 let chunks = App::panes(terminal_size);
@@ -173,7 +189,17 @@ impl<'a> App<'a> {
                         frame.render_widget(book_text_widget, book_panes[1]);
                     }
                     MenuItem::ListArticles => {}
-                    MenuItem::InsertArticle(..) => {}
+                    MenuItem::InsertArticle(..) => {
+                        let article_panes = Layout::default()
+                            .direction(Direction::Horizontal)
+                            .constraints(
+                                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
+                            )
+                            .split(chunks[1]);
+
+                        frame.render_widget(App::render_add_article(), article_panes[0]);
+                        frame.render_widget(article_text_widget, article_panes[1]);
+                    }
                 }
 
                 // Copyright section
@@ -206,7 +232,7 @@ impl<'a> App<'a> {
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Down,  ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
                     if let Some(selected) = lock.selected() {
-                        let amount_books = App::read_sqlite_db().expect("can fetch book list").len();
+                        let amount_books = App::read_sqlite_book_table().expect("can fetch book list").len();
                         if selected >= amount_books - 1 {
                             lock.select(Some(0));
                         } else {
@@ -218,7 +244,7 @@ impl<'a> App<'a> {
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Up, ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
                     if let Some(selected) = lock.selected() {
-                        let amount_books = App::read_sqlite_db().expect("can fetch book list").len();
+                        let amount_books = App::read_sqlite_book_table().expect("can fetch book list").len();
                         if selected > 0 {
                             lock.select(Some(selected - 1));
                         } else {
@@ -227,7 +253,14 @@ impl<'a> App<'a> {
                     }
                 },
                 AppEvent::Tick => {},
-                AppEvent::Input(input) if !self.is_command_mode() => { book_text_area.input(input); },
+                AppEvent::Input(input) if !self.is_command_mode() => {
+                    // book_text_area.input(input);
+                    if let MenuItem::NewBook(InputMode::Input) = self.active_menu_item {
+                        book_text_area.input(input);
+                    } else if let MenuItem::InsertArticle(InputMode::Input) = self.active_menu_item {
+                        article_text_area.input(input);
+                    }
+                },
                 _ => {}
             };
         }
@@ -237,7 +270,6 @@ impl<'a> App<'a> {
 
     fn save_as_item_type(&mut self, text_area: &TextArea) {
         if let MenuItem::NewBook(_) = self.active_menu_item {
-            // println!("{:?}", text_area.lines());
             let mut text_vec = Vec::new();
             for line in text_area.lines() {
                 text_vec.push(line.to_string());
@@ -245,13 +277,18 @@ impl<'a> App<'a> {
             Book::book_transaction(text_vec);
 
         } else if let MenuItem::InsertArticle(_) = self.active_menu_item {
-            println!("{:?}", text_area.lines());
+            let mut text_vec = Vec::new();
+            for line in text_area.lines() {
+                text_vec.push(line.to_string());
+            }
+            Article::article_transaction(text_vec);
         }
     }
     fn enter_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Command) = self.active_menu_item {
             self.active_menu_item = MenuItem::NewBook(InputMode::Input)
-        } else if let MenuItem::InsertArticle(InputMode::Command) = self.active_menu_item {
+        }
+        if let MenuItem::InsertArticle(InputMode::Command) = self.active_menu_item {
             self.active_menu_item = MenuItem::InsertArticle(InputMode::Input)
         }
     }
@@ -271,7 +308,7 @@ impl<'a> App<'a> {
         }
     }
 
-    fn read_sqlite_db() -> Result<Vec<Book>, Error> {
+    fn read_sqlite_book_table() -> Result<Vec<Book>, Error> {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "SELECT book_id, cite_key, publisher_id, month_year_id, author, title, pages, volume, edition, series, note FROM book";
         let mut statement = connection.prepare(query).unwrap();
@@ -293,6 +330,55 @@ impl<'a> App<'a> {
                 })
         }
         Ok(parsed)
+    }
+
+
+    fn read_sqlite_article_table() -> Result<Vec<Article>, Error> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "SELECT cite_key, article_id, publisher_id, month_year_id, title, journal, volume, pages, note, edition FROM article";
+        let mut statement = connection.prepare(query).unwrap();
+        let mut parsed = Vec::new();
+
+        while let Ok(State::Row) = statement.next() {
+            parsed.push(Article {
+                cite_key: statement.read::<String, _>("cite_key").unwrap(),
+                article_id: statement.read::<String, _>("article_id").unwrap(),
+                publisher_id: statement.read::<String, _>("publisher_id").unwrap(),
+                month_year_id: statement.read::<String, _>("month_year_id").unwrap(),
+                title: statement.read::<String, _>("title").unwrap(),
+                journal: statement.read::<String, _>("journal").unwrap(),
+                pages: statement.read::<String, _>("pages").unwrap(),
+                volume: statement.read::<String, _>("volume").unwrap(),
+                note: statement.read::<String, _>("note").unwrap(),
+                edition: statement.read::<String, _>("edition").unwrap(),
+                })
+        }
+        Ok(parsed)
+    }
+
+    fn render_add_article() -> Paragraph<'a> {
+        return Paragraph::new(vec![
+            Line::from(vec![Span::raw("")]),
+            Line::from(vec![Span::styled("Title: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Journal: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Volume: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Pages: ", Style::default().fg(Color::LightBlue))]),
+            Line::from(vec![Span::styled("Note: ", Style::default().fg(Color::LightBlue))]),
+            Line::from(vec![Span::styled("Year: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Edition: ", Style::default().fg(Color::LightBlue))]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("Required input is red ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Optional input is blue ", Style::default().fg(Color::LightBlue))]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("Press Alt-I to start editing ", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press Alt-X to stop editing ", Style::default().fg(Color::Cyan))]),
+            Line::from(vec![Span::styled("Press Ctrl-P to save to database ", Style::default().fg(Color::Cyan))]),
+        ])
+            .alignment(Alignment::Right);
     }
 
 
@@ -324,16 +410,17 @@ impl<'a> App<'a> {
             .alignment(Alignment::Right);
     }
 
+    fn render_articles() {} // todo!
+
     fn render_books(book_list_state: Arc<Mutex<ListState>>) -> (List<'a>, Paragraph<'a>, Paragraph<'a>) {
-        //todo! change to lines showing data instead of 'bar menu' style
         let books = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
             .title("Books")
             .border_type(BorderType::Plain);
 
-        let book_list = App::read_sqlite_db().expect("can fetch book list");
-        let items: Vec<_> = App::read_sqlite_db().expect("can fetch book list")
+        let book_list = App::read_sqlite_book_table().expect("can fetch book list");
+        let items: Vec<_> = App::read_sqlite_book_table().expect("can fetch book list")
             .iter()
             .map(|book| {
                 ListItem::new(Line::from(vec![Span::styled(

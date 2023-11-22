@@ -189,58 +189,56 @@ impl TableInsert for MonthYear {
         statement.next()
     }
 }
-//
-// impl Article {
-//     /// Create and Add book to SQLite database
-//     fn article_transaction() {
-//         let master = MasterEntries::new_article();
-//         let publisher = Publisher::new();
-//         let year = String::new();
-//         let m_y = MonthYear::new(year);
-//         let article_id = Uuid::new_v4().to_string();
-//         let article = Article {
-//             cite_key: master.cite_key.clone(),
-//             article_id,
-//             publisher_id: publisher.publisher_id.clone(),
-//             month_year_id: m_y.month_year_id.clone(),
-//             title: String::new(),
-//             journal: String::new(),
-//             volume: String::new(),
-//             pages: String::new(),
-//             note: String::new(),
-//             edition: String::new(),
-//         };
-//
-//         master.insert();
-//         article.insert();
-//         publisher.insert();
-//         m_y.insert();
-//     }
-// }
-//
-// impl TableInsert for Article {
-//     fn insert(&self) {
-//         let db = SqlitePool::connect(DB_URL).unwrap();
-//         let result = sqlx::query("INSERT INTO article (cite_key, article_id, publisher_id, month_year_id, title, journal, volume, pages, note, edition) VALUES (?,?,?,?,?,?,?,?,?,?)")
-//             .bind(&self.cite_key)
-//             .bind(&self.article_id)
-//             .bind(&self.publisher_id)
-//             .bind(&self.month_year_id)
-//             .bind(&self.title)
-//             .bind(&self.journal)
-//             .bind(&self.volume)
-//             .bind(&self.pages)
-//             .bind(&self.note)
-//             .bind(&self.edition)
-//             .execute(&*db);
-//
-//         match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//         };
-//     }
-// }
-//
+
+impl Article {
+    /// Create and Add article to SQLite database
+    pub(crate) fn article_transaction(textarea: Vec<String>) {
+        let master = MasterEntries::new_article();
+        let publisher = Publisher::new(textarea.clone());
+        let year = textarea[5].clone();
+        let m_y = MonthYear::new(year);
+        let article_id = Uuid::new_v4().to_string();
+        let article = Article {
+            cite_key: master.cite_key.clone(),
+            article_id,
+            publisher_id: publisher.publisher_id.clone(),
+            month_year_id: m_y.month_year_id.clone(),
+            title: textarea[0].clone(),
+            journal: textarea[1].clone(),
+            volume: textarea[2].clone(),
+            pages: textarea[3].clone(),
+            note: textarea[4].clone(),
+            edition: textarea[6].clone(),
+        };
+
+        let _ = master.insert();
+        let _ = article.insert();
+        let _ = publisher.insert();
+        let _ = m_y.insert();
+    }
+}
+
+impl TableInsert for Article {
+    fn insert(&self) -> sqlite::Result<State>{
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "INSERT INTO article VALUES (:cite_key, :article_id, :publisher_id, :month_year_id, :title, :journal, :volume, :pages, :note, :edition)";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+             (":cite_key", self.cite_key.clone().into()),
+             (":article_id", self.article_id.clone().into()),
+             (":publisher_id", self.publisher_id.clone().into()),
+             (":month_year_id", self.month_year_id.clone().into()),
+             (":title", self.title.clone().into()),
+             (":journal", self.journal.clone().into()),
+             (":volume", self.volume.clone().into()),
+             (":pages", self.pages.clone().into()),
+             (":note", self.note.clone().into()),
+             (":edition", self.edition.clone().into()),
+        ]).unwrap();
+        statement.next()
+    }
+}
+
 
 
 impl Publisher {
