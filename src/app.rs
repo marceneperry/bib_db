@@ -15,8 +15,9 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Alignment, Color, Constraint, Direction, Layout, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, BorderType, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs};
+use sqlite::State;
 use tui_textarea::{TextArea};
-use crate::{DB_PATH};
+use crate::{DB_PATH, DB_URL};
 
 // currently only adding new items. later add ability to search and edit items.
 
@@ -168,6 +169,9 @@ impl<'a> App<'a> {
                     }
                     MenuItem::ListArticles => {}
                     MenuItem::InsertArticle(..) => {}
+                    MenuItem::Read => {
+                        App::read_sqlite_db().expect("can read sqlite db");
+                    }
                 }
 
                 // Copyright section
@@ -200,7 +204,7 @@ impl<'a> App<'a> {
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Down,  ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
                     if let Some(selected) = lock.selected() {
-                        let amount_books = App::read_db().expect("can fetch book list").len();
+                        let amount_books = App::read_sqlite_db().expect("can fetch book list").len();
                         if selected >= amount_books - 1 {
                             lock.select(Some(0));
                         } else {
@@ -212,7 +216,7 @@ impl<'a> App<'a> {
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Up, ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
                     if let Some(selected) = lock.selected() {
-                        let amount_books = App::read_db().expect("can fetch book list").len();
+                        let amount_books = App::read_sqlite_db().expect("can fetch book list").len();
                         if selected > 0 {
                             lock.select(Some(selected - 1));
                         } else {
@@ -265,6 +269,31 @@ impl<'a> App<'a> {
         }
     }
 
+    fn read_sqlite_db() -> Result<Vec<Book>, Error> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "SELECT book_id, cite_key, publisher_id, month_year_id, author, title, pages, volume, edition, series, note FROM book";
+        let mut statement = connection.prepare(query).unwrap();
+        let mut parsed = Vec::new();
+
+        while let Ok(State::Row) = statement.next() {
+            parsed.push(Book {
+                    book_id: statement.read::<String, _>("book_id").unwrap(),
+                    cite_key: statement.read::<String, _>("cite_key").unwrap(),
+                    publisher_id: statement.read::<String, _>("publisher_id").unwrap(),
+                    month_year_id: statement.read::<String, _>("month_year_id").unwrap(),
+                    author: statement.read::<String, _>("author").unwrap(),
+                    title: statement.read::<String, _>("title").unwrap(),
+                    pages: statement.read::<String, _>("pages").unwrap(),
+                    volume: statement.read::<String, _>("volume").unwrap(),
+                    edition: statement.read::<String, _>("edition").unwrap(),
+                    series: statement.read::<String, _>("series").unwrap(),
+                    note: statement.read::<String, _>("note").unwrap(),
+                })
+        }
+        Ok(parsed)
+    }
+
+
     fn read_db() -> Result<Vec<Book>, Error> {
         let db_content = std::fs::read_to_string(&DB_PATH).unwrap();
         let parsed: Vec<Book> = serde_json::from_str(&db_content).unwrap();
@@ -306,8 +335,8 @@ impl<'a> App<'a> {
             .title("Books")
             .border_type(BorderType::Plain);
 
-        let book_list = App::read_db().expect("can fetch book list");
-        let items: Vec<_> = App::read_db().expect("can fetch book list")
+        let book_list = App::read_sqlite_db().expect("can fetch book list");
+        let items: Vec<_> = App::read_sqlite_db().expect("can fetch book list")
             .iter()
             .map(|book| {
                 ListItem::new(Line::from(vec![Span::styled(
@@ -346,11 +375,11 @@ impl<'a> App<'a> {
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Cell::from(Span::styled(
-                "Title",
+                "Author",
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Cell::from(Span::styled(
-                "Author",
+                "Title",
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Cell::from(Span::styled(
@@ -384,11 +413,11 @@ impl<'a> App<'a> {
         .widths(&[
             Constraint::Percentage(5),
             Constraint::Percentage(20),
+            Constraint::Percentage(20),
+            Constraint::Percentage(5),
+            Constraint::Percentage(5),
             Constraint::Percentage(10),
-            Constraint::Percentage(5),
-            Constraint::Percentage(5),
-            Constraint::Percentage(5),
-            Constraint::Percentage(10),
+            Constraint::Percentage(15),
             Constraint::Percentage(20),
         ]);
 

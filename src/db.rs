@@ -76,7 +76,6 @@ pub struct Article {
 }
 
 
-
 /// Struct Traits and Implementations
 pub trait TableInsert {
     fn insert(&self) -> sqlite::Result<State>;
@@ -166,7 +165,6 @@ impl TableInsert for Book {
     }
 }
 
-
 impl MonthYear {
     pub fn new(year: String) -> MonthYear {
         let month_year_id = Uuid::new_v4().to_string();
@@ -244,8 +242,7 @@ impl TableInsert for MonthYear {
 // }
 //
 
-// // Implement later
-//
+
 impl Publisher {
     pub fn new(vec: Vec<String>) -> Publisher {
         let publisher_id = Uuid::new_v4().to_string();
