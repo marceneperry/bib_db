@@ -117,7 +117,7 @@ impl Book {
     pub fn book_transaction(textarea: Vec<String>) {
         let master = MasterEntries::new_book();
         let publisher = Publisher::new(textarea.clone());
-        let year = textarea[7].clone();
+        let year = textarea[5].clone();
         let m_y = MonthYear::new(year);
         let book_id = Uuid::new_v4().to_string();
         let book = Book {
@@ -130,8 +130,8 @@ impl Book {
             pages: textarea[2].clone(),
             volume: textarea[3].clone(),
             edition: textarea[4].clone(),
-            series: textarea[5].clone(),
-            note: textarea[6].clone(),
+            series: textarea[6].clone(),
+            note: textarea[8].clone(),
         };
 
         // todo! make these a transaction so that if one of the insert()'s fail it will rollback; probably use rusqlite crate instead of sqlite crate and refactor

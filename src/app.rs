@@ -188,7 +188,27 @@ impl<'a> App<'a> {
                         frame.render_widget(App::render_add_book(), book_panes[0]);
                         frame.render_widget(book_text_widget, book_panes[1]);
                     }
-                    MenuItem::ListArticles => {}
+                    MenuItem::ListArticles => {
+                        let mut lock = article_list_state.lock().expect("can lock state");
+                        if lock.selected().is_none() {
+                            lock.select(Some(0));
+                        }
+                        drop(lock);
+
+                        let article_chunks = Layout::default()
+                            .direction(Direction::Horizontal)
+                            .constraints(
+                                [Constraint::Percentage(20), Constraint::Percentage(8), Constraint::Percentage(80)].as_ref(),
+                            )
+                            .split(chunks[1]);
+
+                        let (left, middle, right) = App::render_articles(article_list_state.clone());
+                        let mut lock = article_list_state.lock().expect("can lock state");
+                        frame.render_stateful_widget(left, article_chunks[0], &mut *lock);
+                        frame.render_widget(middle, article_chunks[1]);
+                        frame.render_widget(right, article_chunks[2]);
+                        drop(lock);
+                    }
                     MenuItem::InsertArticle(..) => {
                         let article_panes = Layout::default()
                             .direction(Direction::Horizontal)
@@ -225,9 +245,15 @@ impl<'a> App<'a> {
                 },
 
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Char('p'), modifiers,  ..})) if KeyModifiers::CONTROL == modifiers => {
-                    self.save_as_item_type(&book_text_area);
-                    book_text_area = TextArea::default();
-                    book_text_area.set_block(new_book.clone());
+                    if let MenuItem::NewBook(_) = self.active_menu_item {
+                        self.save_as_item_type(&book_text_area);
+                        book_text_area = TextArea::default();
+                        book_text_area.set_block(new_book.clone());
+                    } else if let  MenuItem::InsertArticle(_) = self.active_menu_item {
+                        self.save_as_item_type(&article_text_area);
+                        article_text_area = TextArea::default();
+                        article_text_area.set_block(new_article.clone());
+                    }
                 },
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Down,  ..})) if self.is_command_mode() => {
                     let mut lock = self.book_list_state.lock().expect("can lock state");
@@ -254,7 +280,6 @@ impl<'a> App<'a> {
                 },
                 AppEvent::Tick => {},
                 AppEvent::Input(input) if !self.is_command_mode() => {
-                    // book_text_area.input(input);
                     if let MenuItem::NewBook(InputMode::Input) = self.active_menu_item {
                         book_text_area.input(input);
                     } else if let MenuItem::InsertArticle(InputMode::Input) = self.active_menu_item {
@@ -284,6 +309,7 @@ impl<'a> App<'a> {
             Article::article_transaction(text_vec);
         }
     }
+
     fn enter_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Command) = self.active_menu_item {
             self.active_menu_item = MenuItem::NewBook(InputMode::Input)
@@ -332,7 +358,6 @@ impl<'a> App<'a> {
         Ok(parsed)
     }
 
-
     fn read_sqlite_article_table() -> Result<Vec<Article>, Error> {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "SELECT cite_key, article_id, publisher_id, month_year_id, title, journal, volume, pages, note, edition FROM article";
@@ -366,13 +391,10 @@ impl<'a> App<'a> {
             Line::from(vec![Span::styled("Note: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("Year: ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("Edition: ", Style::default().fg(Color::LightBlue))]),
-            Line::from(vec![Span::styled("", Style::default())]),
-            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("Publisher: ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("", Style::default())]),
             Line::from(vec![Span::styled("Required input is red ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("Optional input is blue ", Style::default().fg(Color::LightBlue))]),
-            Line::from(vec![Span::styled("", Style::default())]),
-            Line::from(vec![Span::styled("", Style::default())]),
             Line::from(vec![Span::styled("", Style::default())]),
             Line::from(vec![Span::styled("Press Alt-I to start editing ", Style::default().fg(Color::Cyan))]),
             Line::from(vec![Span::styled("Press Alt-X to stop editing ", Style::default().fg(Color::Cyan))]),
@@ -380,28 +402,23 @@ impl<'a> App<'a> {
         ])
             .alignment(Alignment::Right);
     }
-
 
     fn render_add_book() -> Paragraph<'a> {
 
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
-            Line::from(vec![Span::styled("Title: ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("Author: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Title: ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("Pages: ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("Volume: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("Edition: ", Style::default().fg(Color::LightBlue))]),
-            Line::from(vec![Span::styled("Series: ", Style::default().fg(Color::LightBlue))]),
-            Line::from(vec![Span::styled("Note: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("Year: ", Style::default().fg(Color::LightRed))]),
+            Line::from(vec![Span::styled("Series: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("Publisher: ", Style::default().fg(Color::LightRed))]),
-            Line::from(vec![Span::styled("", Style::default())]),
-            Line::from(vec![Span::styled("", Style::default())]),
+            Line::from(vec![Span::styled("Note: ", Style::default().fg(Color::LightBlue))]),
             Line::from(vec![Span::styled("", Style::default())]),
             Line::from(vec![Span::styled("Required input is red ", Style::default().fg(Color::LightRed))]),
             Line::from(vec![Span::styled("Optional input is blue ", Style::default().fg(Color::LightBlue))]),
-            Line::from(vec![Span::styled("", Style::default())]),
-            Line::from(vec![Span::styled("", Style::default())]),
             Line::from(vec![Span::styled("", Style::default())]),
             Line::from(vec![Span::styled("Press Alt-I to start editing ", Style::default().fg(Color::Cyan))]),
             Line::from(vec![Span::styled("Press Alt-X to stop editing ", Style::default().fg(Color::Cyan))]),
@@ -410,7 +427,75 @@ impl<'a> App<'a> {
             .alignment(Alignment::Right);
     }
 
-    fn render_articles() {} // todo!
+    fn render_articles(article_list_state: Arc<Mutex<ListState>>) -> (List<'a>, Paragraph<'a>, Paragraph<'a>) {
+        let articles = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Articles")
+            .border_type(BorderType::Plain);
+
+        let article_list = App::read_sqlite_article_table().expect("can fetch article list");
+        let items: Vec<_> = App::read_sqlite_article_table().expect("can fetch article list")
+            .iter()
+            .map(|article| {
+                ListItem::new(Line::from(vec![Span::styled(
+                    article.title.clone(),
+                    Style::default(),
+                )]))
+            })
+            .collect();
+
+        let selected = article_list_state.lock().expect("can lock article state").selected();
+        let selected_article = article_list
+            .get(selected.unwrap_or(0))
+            .expect("exists")
+            .clone();
+
+        let list = List::new(items).block(articles).highlight_style(
+            Style::default()
+                .bg(Color::LightBlue)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+        );
+
+        let header = Paragraph::new(vec![
+            Line::from(vec![Span::raw("")]),
+            Line::from(vec![Span::styled("ID ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Title ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Journal ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Volume ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Pages ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Note ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+            Line::from(vec![Span::styled("Edition ", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD))]),
+        ])
+        .alignment(Alignment::Right)
+        .block(
+            Block::default()
+            .style(Style::default().fg(Color::White))
+            .border_type(BorderType::Plain),
+        );
+
+        let article_detail = Paragraph::new(vec![
+            Line::from(Span::raw(selected_article.article_id)),
+            Line::from(Span::raw(selected_article.title)),
+            Line::from(Span::raw(selected_article.journal)),
+            Line::from(Span::raw(selected_article.volume)),
+            Line::from(Span::raw(selected_article.pages)),
+            Line::from(Span::raw(selected_article.note)),
+            Line::from(Span::raw(selected_article.edition)),
+        ])
+            .alignment(Alignment::Left)
+            .block(
+                Block::default()
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::White))
+                .title("Book Detail")
+                .border_type(BorderType::Plain),
+            );
+
+        (list, header, article_detail)
+
+    }
 
     fn render_books(book_list_state: Arc<Mutex<ListState>>) -> (List<'a>, Paragraph<'a>, Paragraph<'a>) {
         let books = Block::default()
