@@ -255,26 +255,53 @@ impl<'a> App<'a> {
                     }
                 },
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Down,  ..})) if self.is_command_mode() => {
-                    let mut lock = self.book_list_state.lock().expect("can lock state");
-                    if let Some(selected) = lock.selected() {
-                        let amount_books = App::read_sqlite_book_table().expect("can fetch book list").len();
-                        if selected >= amount_books - 1 {
-                            lock.select(Some(0));
-                        } else {
-                            lock.select(Some(selected + 1));
+                    if let MenuItem::ShowBooks = self.active_menu_item {
+                        let mut lock = self.book_list_state.lock().expect("can lock state");
+                        if let Some(selected) = lock.selected() {
+                            let amount_books = App::read_sqlite_book_table().expect("can fetch book list").len();
+                            if selected >= amount_books - 1 {
+                                lock.select(Some(0));
+                            } else {
+                                lock.select(Some(selected + 1));
+                            }
                         }
+                        drop(lock);
+                    } else if let MenuItem::ListArticles = self.active_menu_item {
+                        let mut lock = self.article_list_state.lock().expect("can lock state");
+                        if let Some(selected) = lock.selected() {
+                            let amount_articles = App::read_sqlite_article_table().expect("can fetch book list").len();
+                            if selected >= amount_articles - 1 {
+                                lock.select(Some(0));
+                            } else {
+                                lock.select(Some(selected + 1));
+                            }
+                        }
+                        drop(lock)
                     }
-                    drop(lock);
                 },
                 AppEvent::Input(Event::Key(KeyEvent { code: KeyCode::Up, ..})) if self.is_command_mode() => {
-                    let mut lock = self.book_list_state.lock().expect("can lock state");
-                    if let Some(selected) = lock.selected() {
-                        let amount_books = App::read_sqlite_book_table().expect("can fetch book list").len();
-                        if selected > 0 {
-                            lock.select(Some(selected - 1));
-                        } else {
-                            lock.select(Some(amount_books - 1));
+                    if let MenuItem::ShowBooks = self.active_menu_item {
+                        let mut lock = self.book_list_state.lock().expect("can lock state");
+                        if let Some(selected) = lock.selected() {
+                            let amount_books = App::read_sqlite_book_table().expect("can fetch book list").len();
+                            if selected > 0 {
+                                lock.select(Some(selected - 1));
+                            } else {
+                                lock.select(Some(amount_books - 1));
+                            }
                         }
+                        drop(lock)
+                    } else if let MenuItem::ListArticles = self.active_menu_item {
+                        let mut lock = self.article_list_state.lock().expect("can lock state");
+                        if let Some(selected) = lock.selected() {
+                            let amount_articles = App::read_sqlite_article_table().expect("can fetch book list").len();
+                            if selected > 0 {
+                                lock.select(Some(selected - 1));
+                            } else {
+                                lock.select(Some(amount_articles - 1));
+                            }
+                        }
+                        drop(lock)
                     }
                 },
                 AppEvent::Tick => {},
@@ -289,7 +316,6 @@ impl<'a> App<'a> {
             };
         }
         Ok(())
-
     }
 
     fn save_as_item_type(&mut self, text_area: &TextArea) {
