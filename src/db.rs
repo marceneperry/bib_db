@@ -3,6 +3,7 @@ use uuid::Uuid;
 use crate::DB_URL;
 use sqlite::{State, Value};
 
+// todo! Implement remaining relational databases
 
 /// Database Structs and implementations for sql data tables
 #[derive(Clone, Debug)]

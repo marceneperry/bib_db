@@ -13,7 +13,6 @@ use ratatui::backend::{Backend};
 use ratatui::{Terminal};
 use ratatui::layout::Rect;
 use ratatui::prelude::{Alignment, Color, Constraint, Direction, Layout, Modifier, Style};
-// use ratatui::prelude::Marker::Block;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, BorderType, List, ListItem, ListState, Paragraph, Tabs};
 use sqlite::State;
