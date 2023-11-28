@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use crate::DB_URL;
+use serde::{Deserialize, Serialize};
 use sqlite::{State, Value};
+use uuid::Uuid;
 
 // todo! Implement remaining relational databases
 
@@ -26,20 +26,21 @@ pub struct Book {
     pub(crate) series: String,
     pub(crate) note: String,
 }
+// Implement Later
+// #[derive(Clone, Debug)]
+// pub struct Relationship {
+//     pub(crate) parent_id: String,
+//     pub(crate) child_id: String,
+//     pub(crate) cite_key: String,
+// }
 
-#[derive(Clone, Debug)]
-pub struct Relationship {
-    pub(crate) parent_id: String,
-    pub(crate) child_id: String,
-    pub(crate) cite_key: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct Author {
-    pub(crate) cite_key: String,
-    pub(crate) author_id: String,
-    pub(crate) authors: String,
-}
+// Implement Later
+// #[derive(Clone, Debug)]
+// pub struct Author {
+//     pub(crate) cite_key: String,
+//     pub(crate) author_id: String,
+//     pub(crate) authors: String,
+// }
 
 #[derive(Clone, Debug)]
 pub struct Publisher {
@@ -48,12 +49,13 @@ pub struct Publisher {
     pub(crate) address: String,
 }
 
-#[derive(Clone, Debug)]
-pub struct Organizations {
-    pub(crate) organization_id: String,
-    pub(crate) organization: String,
-    pub(crate) address: String,
-}
+// Implement Later
+// #[derive(Clone, Debug)]
+// pub struct Organizations {
+//     pub(crate) organization_id: String,
+//     pub(crate) organization: String,
+//     pub(crate) address: String,
+// }
 
 #[derive(Clone, Debug)]
 pub struct MonthYear {
@@ -76,7 +78,6 @@ pub struct Article {
     pub(crate) edition: String,
 }
 
-
 /// Struct Traits and Implementations
 pub trait TableInsert {
     fn insert(&self) -> sqlite::Result<State>;
@@ -95,7 +96,7 @@ impl MasterEntries {
         let key = Uuid::new_v4().to_string();
         MasterEntries {
             cite_key: key,
-            entry_type: "ARTICLE".parse().unwrap()
+            entry_type: "ARTICLE".parse().unwrap(),
         }
     }
 }
@@ -105,10 +106,12 @@ impl TableInsert for MasterEntries {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "INSERT INTO master_entries VALUES (:cite_key, :entry_type)";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-            (":cite_key", self.cite_key.clone().into()),
-            (":entry_type", self.entry_type.clone().into()),
-        ]).expect("can bind_iter");
+        statement
+            .bind_iter::<_, (_, Value)>([
+                (":cite_key", self.cite_key.clone().into()),
+                (":entry_type", self.entry_type.clone().into()),
+            ])
+            .expect("can bind_iter");
         statement.next()
     }
 }
@@ -140,7 +143,6 @@ impl Book {
         let _ = book.insert();
         let _ = publisher.insert();
         let _ = m_y.insert();
-
     }
 }
 
@@ -149,19 +151,21 @@ impl TableInsert for Book {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "INSERT INTO book VALUES (:book_id, :cite_key, :publisher_id, :month_year_id, :author, :title, :pages, :volume, :edition, :series, :note)";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-            (":book_id", self.book_id.clone().into()),
-            (":cite_key", self.cite_key.clone().into()),
-            (":publisher_id", self.publisher_id.clone().into()),
-            (":month_year_id",self.month_year_id.clone().into()),
-            (":author", self.author.clone().into()),
-            (":title", self.title.clone().into()),
-            (":pages", self.pages.clone().into()),
-            (":volume", self.volume.clone().into()),
-            (":edition",self.edition.clone().into()),
-            (":series", self.series.clone().into()),
-            (":note", self.note.clone().into()),
-        ]).unwrap();
+        statement
+            .bind_iter::<_, (_, Value)>([
+                (":book_id", self.book_id.clone().into()),
+                (":cite_key", self.cite_key.clone().into()),
+                (":publisher_id", self.publisher_id.clone().into()),
+                (":month_year_id", self.month_year_id.clone().into()),
+                (":author", self.author.clone().into()),
+                (":title", self.title.clone().into()),
+                (":pages", self.pages.clone().into()),
+                (":volume", self.volume.clone().into()),
+                (":edition", self.edition.clone().into()),
+                (":series", self.series.clone().into()),
+                (":note", self.note.clone().into()),
+            ])
+            .unwrap();
         statement.next()
     }
 }
@@ -182,11 +186,13 @@ impl TableInsert for MonthYear {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "INSERT INTO month_year VALUES (:month_year_id, :month, :year)";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-            (":month_year_id", self.month_year_id.clone().into()),
-            (":month", self.month.clone().into()),
-            (":year", self.year.clone().into()),
-        ]).unwrap();
+        statement
+            .bind_iter::<_, (_, Value)>([
+                (":month_year_id", self.month_year_id.clone().into()),
+                (":month", self.month.clone().into()),
+                (":year", self.year.clone().into()),
+            ])
+            .unwrap();
         statement.next()
     }
 }
@@ -220,27 +226,27 @@ impl Article {
 }
 
 impl TableInsert for Article {
-    fn insert(&self) -> sqlite::Result<State>{
+    fn insert(&self) -> sqlite::Result<State> {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "INSERT INTO article VALUES (:cite_key, :article_id, :publisher_id, :month_year_id, :title, :journal, :volume, :pages, :note, :edition)";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-             (":cite_key", self.cite_key.clone().into()),
-             (":article_id", self.article_id.clone().into()),
-             (":publisher_id", self.publisher_id.clone().into()),
-             (":month_year_id", self.month_year_id.clone().into()),
-             (":title", self.title.clone().into()),
-             (":journal", self.journal.clone().into()),
-             (":volume", self.volume.clone().into()),
-             (":pages", self.pages.clone().into()),
-             (":note", self.note.clone().into()),
-             (":edition", self.edition.clone().into()),
-        ]).unwrap();
+        statement
+            .bind_iter::<_, (_, Value)>([
+                (":cite_key", self.cite_key.clone().into()),
+                (":article_id", self.article_id.clone().into()),
+                (":publisher_id", self.publisher_id.clone().into()),
+                (":month_year_id", self.month_year_id.clone().into()),
+                (":title", self.title.clone().into()),
+                (":journal", self.journal.clone().into()),
+                (":volume", self.volume.clone().into()),
+                (":pages", self.pages.clone().into()),
+                (":note", self.note.clone().into()),
+                (":edition", self.edition.clone().into()),
+            ])
+            .unwrap();
         statement.next()
     }
 }
-
-
 
 impl Publisher {
     pub fn new(vec: Vec<String>) -> Publisher {
@@ -258,15 +264,17 @@ impl TableInsert for Publisher {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "INSERT INTO publisher VALUES (:publisher_id, :publisher, :address)";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-            (":publisher_id", self.publisher_id.clone().into()),
-            (":publisher", self.publisher.clone().into()),
-            (":address", self.address.clone().into()),
-        ]).as_ref().unwrap();
+        statement
+            .bind_iter::<_, (_, Value)>([
+                (":publisher_id", self.publisher_id.clone().into()),
+                (":publisher", self.publisher.clone().into()),
+                (":address", self.address.clone().into()),
+            ])
+            .as_ref()
+            .unwrap();
         statement.next()
     }
 }
-
 
 // impl Relationship {
 //     pub fn new(master_key: String) -> Relationship {
@@ -353,5 +361,3 @@ impl TableInsert for Publisher {
 //         };
 //     }
 // }
-
-

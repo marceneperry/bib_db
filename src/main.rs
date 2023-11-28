@@ -1,22 +1,18 @@
 mod app;
 mod db;
 
-use std::error::Error;
+use crate::app::App;
 use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use ratatui::prelude::CrosstermBackend;
-use ratatui::{Terminal};
-use crate::{
-    app::{App},
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-
+use ratatui::prelude::CrosstermBackend;
+use ratatui::Terminal;
+use std::error::Error;
 
 /// If database is not already created, initialize it by running `init_db` binary crate.
 /// Update const DB_URL to match what you have named it in `init_db`
 const DB_URL: &str = "sqlite://../bibliographic_db/bib_data.db";
-const DB_PATH: &str = "bibliographic_db/db.json";
-
-
 
 fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
@@ -42,5 +38,3 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
-

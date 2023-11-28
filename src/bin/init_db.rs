@@ -1,13 +1,12 @@
 /// Functions for initializing SQLite database
 // use sqlx::{migrate::MigrateDatabase, Pool, Sqlite, SqlitePool};
-use sqlite;
+// use sqlite;
 
 /// First time using the application you can run this init_db main.
 /// It will setup the database and initialize the base tables.
 fn main() {
-    let _db = init_db();
+    init_db();
 }
-
 
 const DB_URL: &str = "sqlite://../bibliographic_db/bib_data.db";
 
@@ -84,7 +83,6 @@ fn init_db() {
         note            VARCHAR,
         edition         VARCHAR
     );";
+
     connection.execute(query).unwrap();
 }
-
-
