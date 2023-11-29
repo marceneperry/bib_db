@@ -83,6 +83,11 @@ pub trait TableInsert {
     fn insert(&self) -> sqlite::Result<State>;
 }
 
+pub trait RowDelete {
+    fn delete(item_id: String) -> sqlite::Result<State>;
+    // todo! implement for all current tables
+}
+
 impl MasterEntries {
     pub fn new_book() -> MasterEntries {
         let key = Uuid::new_v4().to_string();
@@ -116,6 +121,20 @@ impl TableInsert for MasterEntries {
     }
 }
 
+impl RowDelete for MasterEntries {
+    fn delete(item_id: String) -> sqlite::Result<State> {
+        // let item_id = item_id;
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "DELETE FROM master_entries WHERE cite_key = ?";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+            (1, item_id.into()),
+        ])
+            .unwrap();
+        statement.next()
+    }
+}
+
 impl Book {
     /// Create and Add book to SQLite database
     pub fn book_transaction(textarea: Vec<String>) {
@@ -144,6 +163,11 @@ impl Book {
         let _ = publisher.insert();
         let _ = m_y.insert();
     }
+
+    pub fn delete_book(item_id: String) {
+        let _ = MasterEntries::delete(item_id.clone());
+        let _ = Book::delete(item_id.clone());
+    }
 }
 
 impl TableInsert for Book {
@@ -170,6 +194,18 @@ impl TableInsert for Book {
     }
 }
 
+impl RowDelete for Book {
+    fn delete(item_id: String) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "DELETE FROM book WHERE cite_key = ?";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+            (1, item_id.into()),
+        ])
+            .unwrap();
+        statement.next()
+    }
+}
 impl MonthYear {
     pub fn new(year: String) -> MonthYear {
         let month_year_id = Uuid::new_v4().to_string();
@@ -197,6 +233,7 @@ impl TableInsert for MonthYear {
     }
 }
 
+
 impl Article {
     /// Create and Add article to SQLite database
     pub(crate) fn article_transaction(textarea: Vec<String>) {
@@ -223,6 +260,11 @@ impl Article {
         let _ = publisher.insert();
         let _ = m_y.insert();
     }
+
+    pub fn delete_article(item_id: String) {
+        let _ = MasterEntries::delete(item_id.clone());
+        let _ = Article::delete(item_id.clone());
+    }
 }
 
 impl TableInsert for Article {
@@ -243,6 +285,19 @@ impl TableInsert for Article {
                 (":note", self.note.clone().into()),
                 (":edition", self.edition.clone().into()),
             ])
+            .unwrap();
+        statement.next()
+    }
+}
+
+impl RowDelete for Article {
+    fn delete(item_id: String) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "DELETE FROM article WHERE cite_key = ?";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind_iter::<_, (_, Value)>([
+            (1, item_id.into()),
+        ])
             .unwrap();
         statement.next()
     }
@@ -275,6 +330,7 @@ impl TableInsert for Publisher {
         statement.next()
     }
 }
+
 
 // impl Relationship {
 //     pub fn new(master_key: String) -> Relationship {

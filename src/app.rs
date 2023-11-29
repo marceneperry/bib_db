@@ -224,6 +224,38 @@ impl App {
                     self.exit_input_mode()
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
+                    code: KeyCode::Char('d'), // Delete selected item
+                    modifiers,
+                    ..
+                })) if KeyModifiers::CONTROL == modifiers => {
+                    if let MenuItem::ShowBooks = self.active_menu_item {
+                        let book_list = App::read_sqlite_book_table().expect("can fetch book list");
+                        let selected = self.book_list_state
+                            .lock()
+                            .expect("can lock list state")
+                            .selected();
+                        let selected_item = book_list
+                            .get(selected.unwrap_or(0)) // todo! error handling if list is empty
+                            .expect("exists")
+                            .clone();
+                        let item_id = selected_item.cite_key;
+                        Book::delete_book(item_id);
+                    } else if let MenuItem::ListArticles = self.active_menu_item {
+                        let article_list = App::read_sqlite_article_table().expect("can fetch book list");
+                        let selected = self.article_list_state
+                            .lock()
+                            .expect("can lock list state")
+                            .selected();
+                        let selected_item = article_list
+                            .get(selected.unwrap_or(0)) // todo! error handling if list is empty
+                            .expect("exists")
+                            .clone();
+                        let item_id = selected_item.cite_key;
+                        Article::delete_article(item_id);
+                        // todo! update article list state? when I delete the last item in the list then the selected item doesn't exist
+                    }
+                }
+                AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Char('p'), // Save to database
                     modifiers,
                     ..
@@ -314,6 +346,34 @@ impl App {
             };
         }
         Ok(())
+    }
+
+    fn delete_item(&mut self, list_state: Arc<Mutex<ListState>>) {
+        if let MenuItem::ShowBooks = self.active_menu_item {
+            let book_list = App::read_sqlite_book_table().expect("can fetch book list");
+            let selected = list_state
+                .lock()
+                .expect("can lock list state")
+                .selected();
+            let selected_item = book_list
+                .get(selected.unwrap_or(0)) // todo! error handling if list is empty
+                .expect("exists")
+                .clone();
+            let item_id = selected_item.cite_key;
+            Book::delete_book(item_id);
+        } else if let MenuItem::ListArticles = self.active_menu_item {
+            let article_list = App::read_sqlite_article_table().expect("can fetch book list");
+            let selected = list_state
+                .lock()
+                .expect("can lock list state")
+                .selected();
+            let selected_item = article_list
+                .get(selected.unwrap_or(0)) // todo! error handling if list is empty
+                .expect("exists")
+                .clone();
+            let item_id = selected_item.cite_key;
+            Article::delete_article(item_id);
+        }
     }
 
     /// Saves the data entered in the textarea to Book or Article table
