@@ -16,12 +16,12 @@ const DB_URL: &str = "sqlite://../bibliographic_db/bib_data.db";
 
 fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
-    enable_raw_mode()?; // .expect("can enable raw mode");
+    enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?; //.unwrap();
-    terminal.clear()?; //.unwrap();
+    let mut terminal = Terminal::new(backend)?;
+    terminal.clear()?;
 
     // create app and run it
     let mut app = App::new();
