@@ -127,9 +127,8 @@ impl RowDelete for MasterEntries {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "DELETE FROM master_entries WHERE cite_key = ?";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-            (1, item_id.into()),
-        ])
+        statement
+            .bind_iter::<_, (_, Value)>([(1, item_id.into())])
             .unwrap();
         statement.next()
     }
@@ -199,9 +198,8 @@ impl RowDelete for Book {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "DELETE FROM book WHERE cite_key = ?";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-            (1, item_id.into()),
-        ])
+        statement
+            .bind_iter::<_, (_, Value)>([(1, item_id.into())])
             .unwrap();
         statement.next()
     }
@@ -232,7 +230,6 @@ impl TableInsert for MonthYear {
         statement.next()
     }
 }
-
 
 impl Article {
     /// Create and Add article to SQLite database
@@ -295,9 +292,8 @@ impl RowDelete for Article {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "DELETE FROM article WHERE cite_key = ?";
         let mut statement = connection.prepare(query).unwrap();
-        statement.bind_iter::<_, (_, Value)>([
-            (1, item_id.into()),
-        ])
+        statement
+            .bind_iter::<_, (_, Value)>([(1, item_id.into())])
             .unwrap();
         statement.next()
     }
@@ -330,7 +326,6 @@ impl TableInsert for Publisher {
         statement.next()
     }
 }
-
 
 // impl Relationship {
 //     pub fn new(master_key: String) -> Relationship {

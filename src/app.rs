@@ -100,7 +100,7 @@ impl App {
                 }
 
                 if last_tick.elapsed() >= tick_rate && tx.send(AppEvent::Tick).is_ok() {
-                   last_tick = Instant::now();
+                    last_tick = Instant::now();
                 }
             }
         });
@@ -141,13 +141,20 @@ impl App {
 
                         let (left, middle, right) = App::render_books(book_list_state.clone());
                         let mut lock = book_list_state.lock().expect("can lock state");
-                        frame.render_stateful_widget(left, App::show_panes(chunks.clone())[0], &mut *lock);
+                        frame.render_stateful_widget(
+                            left,
+                            App::show_panes(chunks.clone())[0],
+                            &mut *lock,
+                        );
                         frame.render_widget(middle, App::show_panes(chunks.clone())[1]);
                         frame.render_widget(right, App::show_panes(chunks.clone())[2]);
                         drop(lock);
                     }
                     MenuItem::NewBook(..) => {
-                        frame.render_widget(App::render_add_book(), App::add_panes(chunks.clone())[0]);
+                        frame.render_widget(
+                            App::render_add_book(),
+                            App::add_panes(chunks.clone())[0],
+                        );
                         frame.render_widget(book_text_widget, App::add_panes(chunks.clone())[1]);
                     }
                     MenuItem::ListArticles => {
@@ -160,13 +167,20 @@ impl App {
                         let (left, middle, right) =
                             App::render_articles(article_list_state.clone());
                         let mut lock = article_list_state.lock().expect("can lock state");
-                        frame.render_stateful_widget(left, App::show_panes(chunks.clone())[0], &mut *lock);
+                        frame.render_stateful_widget(
+                            left,
+                            App::show_panes(chunks.clone())[0],
+                            &mut *lock,
+                        );
                         frame.render_widget(middle, App::show_panes(chunks.clone())[1]);
                         frame.render_widget(right, App::show_panes(chunks.clone())[2]);
                         drop(lock);
                     }
                     MenuItem::InsertArticle(..) => {
-                        frame.render_widget(App::render_add_article(), App::add_panes(chunks.clone())[0]);
+                        frame.render_widget(
+                            App::render_add_article(),
+                            App::add_panes(chunks.clone())[0],
+                        );
                         frame.render_widget(article_text_widget, App::add_panes(chunks.clone())[1]);
                     }
                 }
@@ -230,29 +244,67 @@ impl App {
                 })) if KeyModifiers::CONTROL == modifiers => {
                     if let MenuItem::ShowBooks = self.active_menu_item {
                         let book_list = App::read_sqlite_book_table().expect("can fetch book list");
-                        let selected = self.book_list_state
-                            .lock()
-                            .expect("can lock list state")
-                            .selected();
-                        let selected_item = book_list
-                            .get(selected.unwrap_or(0)) // todo! error handling if list is empty
-                            .expect("exists")
-                            .clone();
-                        let item_id = selected_item.cite_key;
-                        Book::delete_book(item_id);
+                        if book_list.is_empty() {
+                        } else {
+                            let selected = self.book_list_state
+                                .lock()
+                                .expect("can lock list state")
+                                .selected();
+                            let selected_item = book_list
+                                .get(selected.unwrap_or(0))
+                                .expect("exists")
+                                .clone();
+                            let item_id = selected_item.cite_key;
+
+                            Book::delete_book(item_id);
+
+// todo! when I delete the last item in the list and the list is not empy then the selected item doesn't exist
+                            // if last item in list move selected item back to top of list
+                            let mut lock = self.book_list_state.lock().expect("can lock state");
+                            if let Some(selected) = lock.selected() {
+                                let amount_books = App::read_sqlite_book_table()
+                                    .expect("can fetch book list")
+                                    .len();
+                                if amount_books == 0 {}
+                                else if selected >= amount_books - 1 {
+                                    lock.select(Some(0));
+                                } else {
+                                    lock.select(Some(selected + 1));
+                                }
+                            }
+                        }
                     } else if let MenuItem::ListArticles = self.active_menu_item {
                         let article_list = App::read_sqlite_article_table().expect("can fetch book list");
-                        let selected = self.article_list_state
-                            .lock()
-                            .expect("can lock list state")
-                            .selected();
-                        let selected_item = article_list
-                            .get(selected.unwrap_or(0)) // todo! error handling if list is empty
-                            .expect("exists")
-                            .clone();
-                        let item_id = selected_item.cite_key;
-                        Article::delete_article(item_id);
-                        // todo! update article list state? when I delete the last item in the list then the selected item doesn't exist
+                        if article_list.is_empty() {
+                        } else {
+                            let selected = self.article_list_state
+                                .lock()
+                                .expect("can lock list state")
+                                .selected();
+                            let selected_item = article_list
+                                .get(selected.unwrap_or(0))
+                                .expect("exists")
+                                .clone();
+                            let item_id = selected_item.cite_key;
+
+                            Article::delete_article(item_id);
+
+// todo! when I delete the last item in the list and the list is not empty then the selected item doesn't exist
+
+                            // if last item in list move selected item back to top of list
+                            let mut lock = self.article_list_state.lock().expect("can lock state");
+                            if let Some(selected) = lock.selected() {
+                                let amount_books = App::read_sqlite_article_table()
+                                    .expect("can fetch book list")
+                                    .len();
+                                if amount_books == 0 {}
+                                else if selected >= amount_books - 1 {
+                                    lock.select(Some(0));
+                                } else {
+                                    lock.select(Some(selected + 1));
+                                }
+                            }
+                        }
                     }
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
@@ -348,34 +400,6 @@ impl App {
         Ok(())
     }
 
-    fn delete_item(&mut self, list_state: Arc<Mutex<ListState>>) {
-        if let MenuItem::ShowBooks = self.active_menu_item {
-            let book_list = App::read_sqlite_book_table().expect("can fetch book list");
-            let selected = list_state
-                .lock()
-                .expect("can lock list state")
-                .selected();
-            let selected_item = book_list
-                .get(selected.unwrap_or(0)) // todo! error handling if list is empty
-                .expect("exists")
-                .clone();
-            let item_id = selected_item.cite_key;
-            Book::delete_book(item_id);
-        } else if let MenuItem::ListArticles = self.active_menu_item {
-            let article_list = App::read_sqlite_article_table().expect("can fetch book list");
-            let selected = list_state
-                .lock()
-                .expect("can lock list state")
-                .selected();
-            let selected_item = article_list
-                .get(selected.unwrap_or(0)) // todo! error handling if list is empty
-                .expect("exists")
-                .clone();
-            let item_id = selected_item.cite_key;
-            Article::delete_article(item_id);
-        }
-    }
-
     /// Saves the data entered in the textarea to Book or Article table
     fn save_as_item_type(&mut self, text_area: &TextArea) {
         if let MenuItem::NewBook(_) = self.active_menu_item {
@@ -414,7 +438,10 @@ impl App {
 
     /// Check if the app is in command mode or input mode
     fn is_command_mode(&self) -> bool {
-        !matches!(self.active_menu_item, MenuItem::NewBook(InputMode::Input) | MenuItem::InsertArticle(InputMode::Input)) // cool clippy suggestion!
+        !matches!(
+            self.active_menu_item,
+            MenuItem::NewBook(InputMode::Input) | MenuItem::InsertArticle(InputMode::Input)
+        ) // cool clippy suggestion!
     }
 
     /// Read the sqlite database book table and returns a vector of book objects
@@ -598,40 +625,6 @@ impl App {
     fn render_articles(
         article_list_state: Arc<Mutex<ListState>>,
     ) -> (List<'static>, Paragraph<'static>, Paragraph<'static>) {
-        let articles = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White))
-            .title("Articles")
-            .border_type(BorderType::Plain);
-
-        let article_list = App::read_sqlite_article_table().expect("can fetch article list");
-        let items: Vec<_> = App::read_sqlite_article_table()
-            .expect("can fetch article list")
-            .iter()
-            .map(|article| {
-                ListItem::new(Line::from(vec![Span::styled(
-                    article.title.clone(),
-                    Style::default(),
-                )]))
-            })
-            .collect();
-
-        let selected = article_list_state
-            .lock()
-            .expect("can lock article state")
-            .selected();
-        let selected_article = article_list
-            .get(selected.unwrap_or(0))
-            .expect("exists")
-            .clone();
-
-        let list = List::new(items).block(articles).highlight_style(
-            Style::default()
-                .bg(Color::LightBlue)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
-        );
-
         let header = Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled(
@@ -684,6 +677,45 @@ impl App {
                 .border_type(BorderType::Plain),
         );
 
+        let articles = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Articles")
+            .border_type(BorderType::Plain);
+
+        let items: Vec<_> = App::read_sqlite_article_table()
+            .expect("can fetch article list")
+            .iter()
+            .map(|article| {
+                ListItem::new(Line::from(vec![Span::styled(
+                    article.title.clone(),
+                    Style::default(),
+                )]))
+            })
+            .collect();
+
+        let list = List::new(items).block(articles).highlight_style(
+            Style::default()
+                .bg(Color::LightBlue)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+        );
+
+        let article_list = App::read_sqlite_article_table().expect("can fetch article list");
+        if article_list.is_empty() {
+            let article_detail = Paragraph::default();
+            return (list, header, article_detail);
+        }
+
+        let selected = article_list_state
+            .lock()
+            .expect("can lock article state")
+            .selected();
+        let selected_article = article_list
+            .get(selected.unwrap_or(0))
+            .expect("exists")
+            .clone();
+
         let article_detail = Paragraph::new(vec![
             Line::from(Span::raw(selected_article.article_id)),
             Line::from(Span::raw(selected_article.title)),
@@ -698,7 +730,7 @@ impl App {
             Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::White))
-                .title("Book Detail")
+                .title("Article Detail")
                 .border_type(BorderType::Plain),
         );
 
@@ -709,37 +741,6 @@ impl App {
     fn render_books(
         book_list_state: Arc<Mutex<ListState>>,
     ) -> (List<'static>, Paragraph<'static>, Paragraph<'static>) {
-        let books = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White))
-            .title("Books")
-            .border_type(BorderType::Plain);
-
-        let book_list = App::read_sqlite_book_table().expect("can fetch book list");
-        let items: Vec<_> = App::read_sqlite_book_table()
-            .expect("can fetch book list")
-            .iter()
-            .map(|book| {
-                ListItem::new(Line::from(vec![Span::styled(
-                    book.title.clone(),
-                    Style::default(),
-                )]))
-            })
-            .collect();
-
-        let selected = book_list_state.lock().expect("can lock state").selected();
-        let selected_book = book_list
-            .get(selected.unwrap_or(0))
-            .expect("exists")
-            .clone();
-
-        let list = List::new(items).block(books).highlight_style(
-            Style::default()
-                .bg(Color::LightBlue)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
-        );
-
         let header = Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled(
@@ -797,6 +798,42 @@ impl App {
                 .style(Style::default().fg(Color::White))
                 .border_type(BorderType::Plain),
         );
+
+        let books = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Books")
+            .border_type(BorderType::Plain);
+
+        let items: Vec<_> = App::read_sqlite_book_table()
+            .expect("can fetch book list")
+            .iter()
+            .map(|book| {
+                ListItem::new(Line::from(vec![Span::styled(
+                    book.title.clone(),
+                    Style::default(),
+                )]))
+            })
+            .collect();
+
+        let list = List::new(items).block(books).highlight_style(
+            Style::default()
+                .bg(Color::LightBlue)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+        );
+
+        let book_list = App::read_sqlite_book_table().expect("can fetch book list");
+        if book_list.is_empty() {
+            let book_detail = Paragraph::default();
+            return (list, header, book_detail);
+        }
+
+        let selected = book_list_state.lock().expect("can lock state").selected();
+        let selected_book = book_list
+            .get(selected.unwrap_or(0))
+            .expect("exists")
+            .clone();
 
         let book_detail = Paragraph::new(vec![
             Line::from(Span::raw(selected_book.book_id)),
@@ -917,9 +954,7 @@ impl App {
     fn add_panes(rect: Rc<[Rect]>) -> Rc<[Rect]> {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(
-                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
-            )
+            .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
             .split(rect[1]);
         chunks
     }
