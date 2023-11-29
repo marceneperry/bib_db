@@ -1,8 +1,5 @@
 /// Functions for initializing SQLite database
-// use sqlx::{migrate::MigrateDatabase, Pool, Sqlite, SqlitePool};
-// use sqlite;
-
-/// First time using the application you can run this init_db main.
+/// If this is the first time using the application you can run this as `cargo run --bin init_db`
 /// It will setup the database and initialize the base tables.
 fn main() {
     init_db();
