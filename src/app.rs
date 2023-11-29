@@ -680,7 +680,7 @@ impl App {
         let articles = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
-            .title("Articles")
+            .title("Articles   Delete selected book with `Ctrl-D`")
             .border_type(BorderType::Plain);
 
         let items: Vec<_> = App::read_sqlite_article_table()
@@ -802,7 +802,7 @@ impl App {
         let books = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
-            .title("Books")
+            .title("Books   Delete selected book with `Ctrl-D`")
             .border_type(BorderType::Plain);
 
         let items: Vec<_> = App::read_sqlite_book_table()

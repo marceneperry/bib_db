@@ -16,6 +16,7 @@ Inside the TUI the menu shows the following options:
   - Displays hot keys to navigate the menu
 - `Show Books` Display a list of books
   - Use up and down arrow keys to move through the list of books in the database
+  - Use `Ctrl-D` to delete the selected book
 - `Book Add` Add a new book
   - To begin editing press `Alt-I`
   - To exit editing press `Alt-X`
@@ -24,6 +25,7 @@ Inside the TUI the menu shows the following options:
   - After you have entered all data and exited editing mode press `Ctrl-P` to save the book to the database
 - `List Articles` Display a list of articles
   - Use up and down arrow keys to move through the list of books in the database
+  - - Use `Ctrl-D` to delete the selected article
 - `Article Add` Add a new article
     - To begin editing press `Alt-I`
     - To exit editing press `Alt-X`
