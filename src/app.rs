@@ -105,28 +105,11 @@ impl App {
             }
         });
 
-        // Create an empty `TextArea` instance which manages the editor state
-        let new_book = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::LightCyan))
-            .title(
-                "New Book:     Press 'Alt-i' to enter edit mode and 'Alt-x' to exit edit mode     ",
-            )
-            .border_type(BorderType::Plain);
-
-        let new_article = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::LightCyan))
-            .title(
-                "New Article:     Press 'Alt-i to enter edit mode and 'Alt-x' to exit edit mode     "
-            )
-            .border_type(BorderType::Plain);
-
         let mut book_text_area = TextArea::default();
-        book_text_area.set_block(new_book.clone());
+        book_text_area.set_block(App::new_book_block());
 
         let mut article_text_area = TextArea::default();
-        article_text_area.set_block(new_article.clone());
+        article_text_area.set_block(App::new_article_block());
 
         loop {
             let terminal_size = terminal.size().expect("can size terminal");
@@ -156,35 +139,16 @@ impl App {
                         }
                         drop(lock);
 
-                        let book_chunks = Layout::default()
-                            .direction(Direction::Horizontal)
-                            .constraints(
-                                [
-                                    Constraint::Percentage(20),
-                                    Constraint::Percentage(8),
-                                    Constraint::Percentage(80),
-                                ]
-                                .as_ref(),
-                            )
-                            .split(chunks[1]);
-
                         let (left, middle, right) = App::render_books(book_list_state.clone());
                         let mut lock = book_list_state.lock().expect("can lock state");
-                        frame.render_stateful_widget(left, book_chunks[0], &mut *lock);
-                        frame.render_widget(middle, book_chunks[1]);
-                        frame.render_widget(right, book_chunks[2]);
+                        frame.render_stateful_widget(left, App::show_panes(chunks.clone())[0], &mut *lock);
+                        frame.render_widget(middle, App::show_panes(chunks.clone())[1]);
+                        frame.render_widget(right, App::show_panes(chunks.clone())[2]);
                         drop(lock);
                     }
                     MenuItem::NewBook(..) => {
-                        let book_panes = Layout::default()
-                            .direction(Direction::Horizontal)
-                            .constraints(
-                                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
-                            )
-                            .split(chunks[1]);
-
-                        frame.render_widget(App::render_add_book(), book_panes[0]);
-                        frame.render_widget(book_text_widget, book_panes[1]);
+                        frame.render_widget(App::render_add_book(), App::add_panes(chunks.clone())[0]);
+                        frame.render_widget(book_text_widget, App::add_panes(chunks.clone())[1]);
                     }
                     MenuItem::ListArticles => {
                         let mut lock = article_list_state.lock().expect("can lock state");
@@ -193,36 +157,17 @@ impl App {
                         }
                         drop(lock);
 
-                        let article_chunks = Layout::default()
-                            .direction(Direction::Horizontal)
-                            .constraints(
-                                [
-                                    Constraint::Percentage(20),
-                                    Constraint::Percentage(8),
-                                    Constraint::Percentage(80),
-                                ]
-                                .as_ref(),
-                            )
-                            .split(chunks[1]);
-
                         let (left, middle, right) =
                             App::render_articles(article_list_state.clone());
                         let mut lock = article_list_state.lock().expect("can lock state");
-                        frame.render_stateful_widget(left, article_chunks[0], &mut *lock);
-                        frame.render_widget(middle, article_chunks[1]);
-                        frame.render_widget(right, article_chunks[2]);
+                        frame.render_stateful_widget(left, App::show_panes(chunks.clone())[0], &mut *lock);
+                        frame.render_widget(middle, App::show_panes(chunks.clone())[1]);
+                        frame.render_widget(right, App::show_panes(chunks.clone())[2]);
                         drop(lock);
                     }
                     MenuItem::InsertArticle(..) => {
-                        let article_panes = Layout::default()
-                            .direction(Direction::Horizontal)
-                            .constraints(
-                                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
-                            )
-                            .split(chunks[1]);
-
-                        frame.render_widget(App::render_add_article(), article_panes[0]);
-                        frame.render_widget(article_text_widget, article_panes[1]);
+                        frame.render_widget(App::render_add_article(), App::add_panes(chunks.clone())[0]);
+                        frame.render_widget(article_text_widget, App::add_panes(chunks.clone())[1]);
                     }
                 }
 
@@ -230,9 +175,10 @@ impl App {
                 frame.render_widget(App::copyright(), chunks[2]);
             })?;
 
+            // Match key events to move around the app menu and edit in text areas
             match rx.recv().unwrap() {
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('q'),
+                    code: KeyCode::Char('q'), // Quit
                     ..
                 })) if self.is_command_mode() => {
                     disable_raw_mode().expect("can disable raw mode");
@@ -240,61 +186,60 @@ impl App {
                     break;
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('h'),
+                    code: KeyCode::Char('h'), // Home menu
                     ..
                 })) if self.is_command_mode() => self.active_menu_item = MenuItem::Home,
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('s'),
+                    code: KeyCode::Char('s'), // Show list of books
                     ..
                 })) if self.is_command_mode() => self.active_menu_item = MenuItem::ShowBooks,
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('b'),
+                    code: KeyCode::Char('b'), // Add a new book
                     ..
                 })) if self.is_command_mode() => {
                     self.active_menu_item = MenuItem::NewBook(InputMode::Command)
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('l'),
+                    code: KeyCode::Char('l'), // Show a list of articles
                     ..
                 })) if self.is_command_mode() => self.active_menu_item = MenuItem::ListArticles,
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('a'),
+                    code: KeyCode::Char('a'), // Add a new article
                     ..
                 })) if self.is_command_mode() => {
                     self.active_menu_item = MenuItem::InsertArticle(InputMode::Command)
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('i'),
+                    code: KeyCode::Char('i'), // Enter edit mode
                     modifiers,
                     ..
                 })) if KeyModifiers::ALT == modifiers && self.is_command_mode() => {
                     self.enter_input_mode()
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('x'),
+                    code: KeyCode::Char('x'), // Exit edit mode
                     modifiers,
                     ..
                 })) if KeyModifiers::ALT == modifiers && !self.is_command_mode() => {
                     self.exit_input_mode()
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('p'),
+                    code: KeyCode::Char('p'), // Save to database
                     modifiers,
                     ..
                 })) if KeyModifiers::CONTROL == modifiers => {
                     if let MenuItem::NewBook(_) = self.active_menu_item {
                         self.save_as_item_type(&book_text_area);
                         book_text_area = TextArea::default();
-                        book_text_area.set_block(new_book.clone());
+                        book_text_area.set_block(App::new_book_block());
                     } else if let MenuItem::InsertArticle(_) = self.active_menu_item {
                         self.save_as_item_type(&article_text_area);
                         article_text_area = TextArea::default();
-                        article_text_area.set_block(new_article.clone());
+                        article_text_area.set_block(App::new_article_block());
                     }
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Down,
-                    ..
+                    code: KeyCode::Down, .. // Move down in the list of books or articles; wraps around
                 })) if self.is_command_mode() => {
                     if let MenuItem::ShowBooks = self.active_menu_item {
                         let mut lock = self.book_list_state.lock().expect("can lock state");
@@ -325,7 +270,7 @@ impl App {
                     }
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Up, ..
+                    code: KeyCode::Up, .. // Move up in th elist of books or articles; wraps around
                 })) if self.is_command_mode() => {
                     if let MenuItem::ShowBooks = self.active_menu_item {
                         let mut lock = self.book_list_state.lock().expect("can lock state");
@@ -357,6 +302,7 @@ impl App {
                 }
                 AppEvent::Tick => {}
                 AppEvent::Input(input) if !self.is_command_mode() => {
+                    // Text area input mode
                     if let MenuItem::NewBook(InputMode::Input) = self.active_menu_item {
                         book_text_area.input(input);
                     } else if let MenuItem::InsertArticle(InputMode::Input) = self.active_menu_item
@@ -370,6 +316,7 @@ impl App {
         Ok(())
     }
 
+    /// Saves the data entered in the textarea to Book or Article table
     fn save_as_item_type(&mut self, text_area: &TextArea) {
         if let MenuItem::NewBook(_) = self.active_menu_item {
             let mut text_vec = Vec::new();
@@ -386,6 +333,7 @@ impl App {
         }
     }
 
+    /// Change the state of the app from Command mode to Input mode
     fn enter_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Command) = self.active_menu_item {
             self.active_menu_item = MenuItem::NewBook(InputMode::Input)
@@ -395,6 +343,7 @@ impl App {
         }
     }
 
+    /// Change the state of the app from Input mode to Command mode
     fn exit_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Input) = self.active_menu_item {
             self.active_menu_item = MenuItem::NewBook(InputMode::Command)
@@ -403,16 +352,12 @@ impl App {
         }
     }
 
+    /// Check if the app is in command mode or input mode
     fn is_command_mode(&self) -> bool {
         !matches!(self.active_menu_item, MenuItem::NewBook(InputMode::Input) | MenuItem::InsertArticle(InputMode::Input)) // cool clippy suggestion!
-        // match self.active_menu_item {
-        //     MenuItem::NewBook(InputMode::Input) | MenuItem::InsertArticle(InputMode::Input) => {
-        //         false
-        //     }
-        //     _ => true,
-        // }
     }
 
+    /// Read the sqlite database book table and returns a vector of book objects
     fn read_sqlite_book_table() -> Result<Vec<Book>, Error> {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "SELECT book_id, cite_key, publisher_id, month_year_id, author, title, pages, volume, edition, series, note FROM book";
@@ -437,6 +382,7 @@ impl App {
         Ok(parsed)
     }
 
+    /// Read the sqlite database article table and returns a vector of article objects
     fn read_sqlite_article_table() -> Result<Vec<Article>, Error> {
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "SELECT cite_key, article_id, publisher_id, month_year_id, title, journal, volume, pages, note, edition FROM article";
@@ -460,6 +406,7 @@ impl App {
         Ok(parsed)
     }
 
+    /// UI for adding a new article
     fn render_add_article() -> Paragraph<'static> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
@@ -521,6 +468,7 @@ impl App {
         .alignment(Alignment::Right);
     }
 
+    /// UI for adding a new book
     fn render_add_book() -> Paragraph<'static> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
@@ -586,6 +534,7 @@ impl App {
         .alignment(Alignment::Right);
     }
 
+    /// UI for rendering all articles in the database
     fn render_articles(
         article_list_state: Arc<Mutex<ListState>>,
     ) -> (List<'static>, Paragraph<'static>, Paragraph<'static>) {
@@ -696,6 +645,7 @@ impl App {
         (list, header, article_detail)
     }
 
+    /// UI for rendering all books in the database
     fn render_books(
         book_list_state: Arc<Mutex<ListState>>,
     ) -> (List<'static>, Paragraph<'static>, Paragraph<'static>) {
@@ -810,6 +760,7 @@ impl App {
         (list, header, book_detail)
     }
 
+    /// UI for rendering the home section
     fn render_home() -> Paragraph<'static> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
@@ -856,6 +807,21 @@ impl App {
         );
     }
 
+    /// UI for rendering the copyright section
+    fn copyright() -> Paragraph<'static> {
+        return Paragraph::new("Library DB 2023 - all rights reserved")
+            .style(Style::default().fg(Color::Rgb(35, 70, 184)))
+            .alignment(Alignment::Center)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(Color::White))
+                    .title("Copyright")
+                    .border_type(BorderType::Plain),
+            );
+    }
+
+    /// Define terminal sections
     fn panes(rect: Rect) -> Rc<[Rect]> {
         return Layout::default()
             .direction(Direction::Vertical)
@@ -871,19 +837,58 @@ impl App {
             .split(rect);
     }
 
-    fn copyright() -> Paragraph<'static> {
-        return Paragraph::new("Library DB 2023 - all rights reserved")
-            .style(Style::default().fg(Color::Rgb(35, 70, 184)))
-            .alignment(Alignment::Center)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .style(Style::default().fg(Color::White))
-                    .title("Copyright")
-                    .border_type(BorderType::Plain),
-            );
+    /// Define `show_` sections
+    fn show_panes(rect: Rc<[Rect]>) -> Rc<[Rect]> {
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(
+                [
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(8),
+                    Constraint::Percentage(80),
+                ]
+                .as_ref(),
+            )
+            .split(rect[1]);
+        chunks
     }
 
+    /// Define `add_` sections
+    fn add_panes(rect: Rc<[Rect]>) -> Rc<[Rect]> {
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(
+                [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
+            )
+            .split(rect[1]);
+        chunks
+    }
+
+    /// UI for new_book
+    fn new_book_block() -> Block<'static> {
+        let new_book = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::LightCyan))
+            .title(
+                "New Book:     Press 'Alt-i' to enter edit mode and 'Alt-x' to exit edit mode     ",
+            )
+            .border_type(BorderType::Plain);
+        new_book
+    }
+
+    /// UI for new_article
+    fn new_article_block() -> Block<'static> {
+        let new_article = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::LightCyan))
+            .title(
+                "New Article:     Press 'Alt-i to enter edit mode and 'Alt-x' to exit edit mode     ",
+            )
+            .border_type(BorderType::Plain);
+        new_article
+    }
+
+    /// UI for Menu bar
     fn menu<'a>(titles: Cloned<Iter<'a, &'static str>>, select: usize) -> Tabs<'a> {
         // todo! change underlined letter on menu bar?
         let menu = titles
