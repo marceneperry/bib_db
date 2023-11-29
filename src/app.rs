@@ -58,16 +58,16 @@ impl MenuItem {
     }
 }
 
-pub struct App<'a> {
-    pub menu_titles: Vec<&'a str>,
+pub struct App {
+    pub menu_titles: Vec<&'static str>,
     pub index: usize,
     active_menu_item: MenuItem,
     pub book_list_state: Arc<Mutex<ListState>>,
     pub article_list_state: Arc<Mutex<ListState>>,
 }
 
-impl<'a> App<'a> {
-    pub fn new() -> App<'a> {
+impl App {
+    pub fn new() -> App {
         App {
             menu_titles: vec![
                 "Home",
@@ -83,19 +83,6 @@ impl<'a> App<'a> {
             article_list_state: Arc::new(Mutex::new(ListState::default())),
         }
     }
-
-    // // Iterating menu functions
-    // pub fn next(&mut self) {
-    //     self.index = (self.index + 1) % self.menu_titles.len();
-    // }
-    //
-    // pub fn previous(&mut self) {
-    //     if self.index > 0 {
-    //         self.index -= 1;
-    //     } else {
-    //         self.index = self.menu_titles.len() - 1;
-    //     }
-    // }
 
     // Run the terminal loop with event handlers
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<(), Error> {
@@ -473,7 +460,7 @@ impl<'a> App<'a> {
         Ok(parsed)
     }
 
-    fn render_add_article() -> Paragraph<'a> {
+    fn render_add_article() -> Paragraph<'static> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled(
@@ -534,7 +521,7 @@ impl<'a> App<'a> {
         .alignment(Alignment::Right);
     }
 
-    fn render_add_book() -> Paragraph<'a> {
+    fn render_add_book() -> Paragraph<'static> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled(
@@ -601,7 +588,7 @@ impl<'a> App<'a> {
 
     fn render_articles(
         article_list_state: Arc<Mutex<ListState>>,
-    ) -> (List<'a>, Paragraph<'a>, Paragraph<'a>) {
+    ) -> (List<'static>, Paragraph<'static>, Paragraph<'static>) {
         let articles = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
@@ -711,7 +698,7 @@ impl<'a> App<'a> {
 
     fn render_books(
         book_list_state: Arc<Mutex<ListState>>,
-    ) -> (List<'a>, Paragraph<'a>, Paragraph<'a>) {
+    ) -> (List<'static>, Paragraph<'static>, Paragraph<'static>) {
         let books = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
@@ -823,7 +810,7 @@ impl<'a> App<'a> {
         (list, header, book_detail)
     }
 
-    fn render_home() -> Paragraph<'a> {
+    fn render_home() -> Paragraph<'static> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::raw("Welcome to")]),
@@ -884,7 +871,7 @@ impl<'a> App<'a> {
             .split(rect);
     }
 
-    fn copyright() -> Paragraph<'a> {
+    fn copyright() -> Paragraph<'static> {
         return Paragraph::new("Library DB 2023 - all rights reserved")
             .style(Style::default().fg(Color::Rgb(35, 70, 184)))
             .alignment(Alignment::Center)
@@ -897,7 +884,7 @@ impl<'a> App<'a> {
             );
     }
 
-    fn menu(titles: Cloned<Iter<'_, &'a str>>, select: usize) -> Tabs<'a> {
+    fn menu<'a>(titles: Cloned<Iter<'a, &'static str>>, select: usize) -> Tabs<'a> {
         // todo! change underlined letter on menu bar?
         let menu = titles
             .map(|t| {
