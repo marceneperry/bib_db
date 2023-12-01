@@ -1,7 +1,7 @@
 # bib_db
 A Bibliographic Relational Database built in Rust.  A basic implementation to store metadata about Books and Articles in the way a University library would keep track of what items they have available to their students. Other uses would be for public libraries, medical libraries.  These are called Library Catalogs... think of it as a digital version of a 'card catalog'.  
 
-This is a TUI (Terminal User Interface) program that allows a user to store and retrieve data from an SQLite database.
+This is a TUI (Terminal User Interface) program that allows a user to store and retrieve data from an SQLite database. Still in development phase.
 
 ![img.png](img.png)
 
@@ -13,25 +13,25 @@ This will create the database and all the relational tables needed to store data
 Initialize the TUI by using `cargo run --bin bib_db`
 Inside the TUI the menu shows the following options:
 - `Home` Introduction page
-  - Displays hot keys to navigate the menu
+    - Displays hot keys to navigate the menu
 - `Show Books` Display a list of books
   - Use up and down arrow keys to move through the list of books in the database
   - Use `Ctrl-D` to delete the selected book
 - `Book Add` Add a new book
   - To begin editing press `F2`
-  - To exit editing press `F12`
+  - After you have entered all data and exited editing mode press `F9` to save the book to the database
+  - To exit editing press `F12` changes wil lnto be saved
   - Required fields for the database are labeled red
   - Other fields are optional
-  - After you have entered all data and exited editing mode press `F9` to save the book to the database
 - `List Articles` Display a list of articles
   - Use up and down arrow keys to move through the list of books in the database
-  - - Use `Ctrl-D` to delete the selected article
+  - Use `Ctrl-D` to delete the selected article
 - `Article Add` Add a new article
-    - To begin editing press `F2`
-    - To exit editing press `F12`
-    - Required fields for the database are labeled red
-    - Other fields are optional
-    - After you have entered all data and exited editing mode press `F9` to save the article to the database
+  - To begin editing press `F2`
+  - After you have entered all data and exited editing mode press `F9` to save the article to the database
+  - To exit editing press `F12` changes will not be saved
+  - Required fields for the database are labeled red
+  - Other fields are optional
 - `Quit`
   - Exit the program
   - Must not be in editing mode to quit. If you are in editing mode press `F12` to exit then pres `Q` to quit

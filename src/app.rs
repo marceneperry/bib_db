@@ -241,7 +241,22 @@ impl App {
                     self.update_flag = false;
                     self.exit_input_mode()
                 }
-
+                AppEvent::Input(Event::Key(KeyEvent {
+                    code: KeyCode::F(9), // Save to database
+                    ..
+                })) => {
+                    if let MenuItem::NewBook(_) = self.active_menu_item {
+                        self.save_as_item_type(&book_text_area);
+                        book_text_area = TextArea::default();
+                        book_text_area.set_block(App::new_book_block(self.update_flag));
+                    } else if let MenuItem::InsertArticle(_) = self.active_menu_item {
+                        self.save_as_item_type(&article_text_area);
+                        article_text_area = TextArea::default();
+                        article_text_area.set_block(App::new_article_block(self.update_flag));
+                    }
+                    self.update_flag = false;
+                    self.exit_input_mode()
+                }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Char('u'), // Update selected item
                     modifiers,
@@ -249,40 +264,14 @@ impl App {
                 })) if KeyModifiers::CONTROL == modifiers => {
                     if let MenuItem::ShowBooks = self.active_menu_item {
                         self.update_flag = true;
-// todo! make this a function ...
-                        let book_list = App::read_sqlite_book_table().expect("can fetch book list");
-                        let selected = self.book_list_state
-                            .lock()
-                            .expect("can lock list state")
-                            .selected();
-                        let selected_item = book_list
-                            .get(selected.unwrap_or(0))
-                            .expect("exists")
-                            .clone();
-                        self.update_item_id = selected_item.cite_key;
-// todo! ... to here
+                        self.get_item_id();
                         self.active_menu_item = MenuItem::NewBook(InputMode::Input);
-
-
                     } else if let MenuItem::ListArticles = self.active_menu_item {
-                        let article_list = App::read_sqlite_article_table().expect("can fetch book list");
-
-                        let selected = self.article_list_state
-                            .lock()
-                            .expect("can lock list state")
-                            .selected();
-                        let selected_item = article_list
-                            .get(selected.unwrap_or(0))
-                            .expect("exists")
-                            .clone();
-
-                        self.update_item_id = selected_item.cite_key;
+                        self.get_item_id();
                         self.update_flag = true;
                         self.active_menu_item = MenuItem::InsertArticle(InputMode::Input);
-
                     }
                 }
-
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Char('d'), // Delete selected item
                     modifiers,
@@ -292,17 +281,7 @@ impl App {
                         let book_list = App::read_sqlite_book_table().expect("can fetch book list");
                         if book_list.is_empty() {
                         } else {
-// !todo make a function...
-                            let selected = self.book_list_state
-                                .lock()
-                                .expect("can lock list state")
-                                .selected();
-                            let selected_item = book_list
-                                .get(selected.unwrap_or(0))
-                                .expect("exists")
-                                .clone();
-                            self.update_item_id = selected_item.cite_key;
-
+                            self.get_item_id();
                             Book::delete_book(self.update_item_id.clone());
 
                             // if last item in list move selected item back to top of list
@@ -323,17 +302,7 @@ impl App {
                         let article_list = App::read_sqlite_article_table().expect("can fetch book list");
                         if article_list.is_empty() {
                         } else {
-// !todo make a function...
-                            let selected = self.article_list_state
-                                .lock()
-                                .expect("can lock list state")
-                                .selected();
-                            let selected_item = article_list
-                                .get(selected.unwrap_or(0))
-                                .expect("exists")
-                                .clone();
-                            self.update_item_id = selected_item.cite_key;
-
+                            self.get_item_id();
                             Article::delete_article(self.update_item_id.clone());
 
                             // if last item in list move selected item back to top of list
@@ -351,21 +320,6 @@ impl App {
                             }
                         }
                     }
-                }
-                AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::F(9), // Save to database // do this same thing for update but do self.update_as_item_type(&book_text_area, item_id)
-                    ..
-                })) => {
-                    if let MenuItem::NewBook(_) = self.active_menu_item {
-                        self.save_as_item_type(&book_text_area);
-                        book_text_area = TextArea::default();
-                        book_text_area.set_block(App::new_book_block(false));
-                    } else if let MenuItem::InsertArticle(_) = self.active_menu_item {
-                        self.save_as_item_type(&article_text_area);
-                        article_text_area = TextArea::default();
-                        article_text_area.set_block(App::new_article_block(false));
-                    }
-                    self.exit_input_mode()
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Down, .. // Move down in the list of books or articles; wraps around
@@ -443,6 +397,32 @@ impl App {
             };
         }
         Ok(())
+    }
+
+    fn get_item_id(&mut self) {
+        if let MenuItem::ShowBooks = self.active_menu_item {
+            let book_list = App::read_sqlite_book_table().expect("can fetch book list");
+            let selected = self.book_list_state
+                .lock()
+                .expect("can lock list state")
+                .selected();
+            let selected_item = book_list
+                .get(selected.unwrap_or(0))
+                .expect("exists")
+                .clone();
+            self.update_item_id = selected_item.cite_key;
+        } else if let MenuItem::ListArticles = self.active_menu_item {
+            let article_list = App::read_sqlite_article_table().expect("can fetch book list");
+            let selected = self.article_list_state
+                .lock()
+                .expect("can lock list state")
+                .selected();
+            let selected_item = article_list
+                .get(selected.unwrap_or(0))
+                .expect("exists")
+                .clone();
+            self.update_item_id = selected_item.cite_key;
+        }
     }
 
     /// Saves the data entered in the textarea to Book or Article table
