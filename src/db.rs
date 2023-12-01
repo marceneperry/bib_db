@@ -1,5 +1,6 @@
 use crate::DB_URL;
 use sqlite::{State, Value};
+use std::string::String;
 use uuid::Uuid;
 
 // todo! Implement updating rows
@@ -93,9 +94,11 @@ pub trait RowDelete {
 
 pub trait RowUpdate {
     fn update(&self, item_id: String) -> sqlite::Result<State>;
-    // todo! implement for Book and Article
 }
 
+pub trait RowSelect {
+    fn select(item_id: &str) -> Vec<String>;
+}
 
 impl MasterEntries {
     pub fn new_book() -> MasterEntries {
@@ -263,6 +266,34 @@ impl RowDelete for Book {
     }
 }
 
+impl RowSelect for Book {
+    fn select(item_id: &str) -> Vec<String> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "SELECT * FROM book WHERE cite_key = :cite_key";
+        let mut statement = connection.prepare(query).unwrap();
+        statement.bind((":cite_key", item_id)).expect("can bind id");
+        let mut text_vec = Vec::new();
+
+        while let Ok(State::Row) = statement.next() {
+            text_vec = vec![
+                "author",
+                "title",
+                "pages",
+                "volume",
+                "edition",
+                "year",
+                "series",
+                "publisher",
+                "note",
+            ]
+            .into_iter()
+            .map(|index| statement.read::<String, _>(index).unwrap())
+            .collect();
+        }
+        text_vec
+    }
+}
+
 impl MonthYear {
     pub fn new(year: String) -> MonthYear {
         let month_year_id = Uuid::new_v4().to_string();
@@ -404,6 +435,35 @@ impl RowUpdate for Article {
             ])
             .unwrap();
         statement.next()
+    }
+}
+
+impl RowSelect for Article {
+    fn select(item_id: &str) -> Vec<String> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "SELECT * FROM article WHERE cite_key = ?";
+        let mut statement = connection.prepare(query).unwrap();
+        statement
+            .bind_iter::<_, (_, Value)>([(1, item_id.into())])
+            .expect("can bind id");
+        let mut text_vec = Vec::new();
+
+        while let Ok(State::Row) = statement.next() {
+            text_vec = vec![
+                "title",
+                "journal",
+                "volume",
+                "pages",
+                "note",
+                "year",
+                "edition",
+                "publisher",
+            ]
+            .into_iter()
+            .map(|index| statement.read::<String, _>(index).unwrap())
+            .collect();
+        }
+        text_vec
     }
 }
 

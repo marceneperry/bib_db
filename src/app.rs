@@ -1,4 +1,4 @@
-use crate::db::{Article, Book};
+use crate::db::{Article, Book, RowSelect};
 use crate::DB_URL;
 use crossterm::event;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -60,6 +60,7 @@ impl MenuItem {
     }
 }
 
+#[derive(Clone)]
 pub struct App {
     pub menu_titles: Vec<&'static str>,
     pub index: usize,
@@ -85,7 +86,7 @@ impl App {
             active_menu_item: MenuItem::Home,
             book_list_state: Arc::new(Mutex::new(ListState::default())),
             article_list_state: Arc::new(Mutex::new(ListState::default())),
-            update_item_id: "".to_string(),
+            update_item_id: "64406381-99a9-44bf-9bfc-a594ddd13356".to_string(),
             update_flag: false,
         }
     }
@@ -120,7 +121,7 @@ impl App {
             let active_menu_item = self.active_menu_item;
             let book_list_state = self.book_list_state.clone();
             let article_list_state = self.article_list_state.clone();
-            book_text_area.set_block(App::new_book_block(self.update_flag));
+            book_text_area.set_block(App::new_book_block(self.update_flag.clone()));
             let book_text_widget = book_text_area.widget();
             article_text_area.set_block(App::new_article_block(self.update_flag));
             let article_text_widget = article_text_area.widget();
@@ -248,11 +249,11 @@ impl App {
                     if let MenuItem::NewBook(_) = self.active_menu_item {
                         self.save_as_item_type(&book_text_area);
                         book_text_area = TextArea::default();
-                        book_text_area.set_block(App::new_book_block(self.update_flag));
+                        book_text_area.set_block(App::new_book_block(false));
                     } else if let MenuItem::InsertArticle(_) = self.active_menu_item {
                         self.save_as_item_type(&article_text_area);
                         article_text_area = TextArea::default();
-                        article_text_area.set_block(App::new_article_block(self.update_flag));
+                        article_text_area.set_block(App::new_article_block(false));
                     }
                     self.update_flag = false;
                     self.exit_input_mode()
@@ -265,10 +266,16 @@ impl App {
                     if let MenuItem::ShowBooks = self.active_menu_item {
                         self.update_flag = true;
                         self.get_item_id();
+                        let text_vec = Book::select(&self.update_item_id);
+                        book_text_area = TextArea::new(text_vec);
+                        book_text_area.set_block(App::new_book_block(self.update_flag));
                         self.active_menu_item = MenuItem::NewBook(InputMode::Input);
                     } else if let MenuItem::ListArticles = self.active_menu_item {
-                        self.get_item_id();
                         self.update_flag = true;
+                        self.get_item_id();
+                        let text_vec = Article::select(&self.update_item_id);
+                        article_text_area = TextArea::new(text_vec);
+                        article_text_area.set_block(App::new_book_block(self.update_flag));
                         self.active_menu_item = MenuItem::InsertArticle(InputMode::Input);
                     }
                 }
@@ -399,10 +406,13 @@ impl App {
         Ok(())
     }
 
+    /// Retrieves cite_key of current item (book or article); Used to update or delete an item.
     fn get_item_id(&mut self) {
+        self.update_item_id = "".to_string();
         if let MenuItem::ShowBooks = self.active_menu_item {
             let book_list = App::read_sqlite_book_table().expect("can fetch book list");
-            let selected = self.book_list_state
+            let selected = self
+                .book_list_state
                 .lock()
                 .expect("can lock list state")
                 .selected();
@@ -410,10 +420,11 @@ impl App {
                 .get(selected.unwrap_or(0))
                 .expect("exists")
                 .clone();
-            self.update_item_id = selected_item.cite_key;
+            self.update_item_id = selected_item.cite_key.clone();
         } else if let MenuItem::ListArticles = self.active_menu_item {
             let article_list = App::read_sqlite_article_table().expect("can fetch book list");
-            let selected = self.article_list_state
+            let selected = self
+                .article_list_state
                 .lock()
                 .expect("can lock list state")
                 .selected();
@@ -446,7 +457,6 @@ impl App {
         }
     }
 
-
     /// Change the state of the app from Command mode to Input mode
     fn enter_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Command) = self.active_menu_item {
@@ -456,7 +466,6 @@ impl App {
             self.active_menu_item = MenuItem::InsertArticle(InputMode::Input)
         }
     }
-
 
     /// Change the state of the app from Input mode to Command mode
     fn exit_input_mode(&mut self) {
@@ -921,7 +930,7 @@ impl App {
     }
 
     /// UI for rendering the home section
-// todo! make two paragraphs side by side. More info on hot keys
+    // todo! make two paragraphs side by side. More info on hot keys
     fn render_home() -> Paragraph<'static> {
         return Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
@@ -1024,26 +1033,22 @@ impl App {
     }
 
     /// UI for new_book
-// todo! combine block for book and article?
+    // todo! combine block for book and article?
     fn new_book_block(x: bool) -> Block<'static> {
         if x == false {
             let new_book = Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::LightCyan))
-                .title(
-                    "New Book:     Press 'F2' to enter edit mode and 'F9' to save     ",
-                )
+                .title("New Book:     Press 'F2' to enter edit mode and 'F9' to save     ")
                 .border_type(BorderType::Plain);
             new_book
-            } else {
-                let edit_book = Block::default()
-                    .borders(Borders::ALL)
-                    .style(Style::default().fg(Color::LightCyan))
-                    .title(
-                        "Update Book:     Press 'F2' to enter edit mode and 'F9' to save     ",
-                    )
-                    .border_type(BorderType::Plain);
-                edit_book
+        } else {
+            let edit_book = Block::default()
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::LightCyan))
+                .title("Update Book:     Press 'F2' to enter edit mode and 'F9' to save     ")
+                .border_type(BorderType::Plain);
+            edit_book
         }
     }
 
@@ -1053,26 +1058,22 @@ impl App {
             let new_article = Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::LightCyan))
-                .title(
-                    "New Article:     Press 'F2' to enter edit mode and 'F9' to save     ",
-                )
+                .title("New Article:     Press 'F2' to enter edit mode and 'F9' to save     ")
                 .border_type(BorderType::Plain);
             new_article
         } else {
             let edit_article = Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::LightCyan))
-                .title(
-                    "Update Article:     Press 'F2' to enter edit mode and 'F9' to save     ",
-                )
+                .title("Update Article:     Press 'F2' to enter edit mode and 'F9' to save     ")
                 .border_type(BorderType::Plain);
             edit_article
         }
     }
 
     /// UI for Menu bar
+    // todo! change underlined letter on menu bar?
     fn menu<'a>(titles: Cloned<Iter<'a, &'static str>>, select: usize) -> Tabs<'a> {
-// todo! change underlined letter on menu bar?
         let menu = titles
             .map(|t| {
                 let (first, rest) = t.split_at(1);
