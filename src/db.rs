@@ -23,7 +23,9 @@ pub struct Book {
     pub(crate) pages: String,
     pub(crate) volume: String,
     pub(crate) edition: String,
+    pub(crate) year: String,
     pub(crate) series: String,
+    pub(crate) publisher: String,
     pub(crate) note: String,
 }
 // Implement Later
@@ -75,7 +77,9 @@ pub struct Article {
     pub(crate) volume: String,
     pub(crate) pages: String,
     pub(crate) note: String,
+    pub(crate) year: String,
     pub(crate) edition: String,
+    pub(crate) publisher: String,
 }
 
 /// Struct Traits and Implementations
@@ -128,7 +132,6 @@ impl TableInsert for MasterEntries {
 
 impl RowDelete for MasterEntries {
     fn delete(item_id: String) -> sqlite::Result<State> {
-        // let item_id = item_id;
         let connection = sqlite::open(DB_URL).unwrap();
         let query = "DELETE FROM master_entries WHERE cite_key = ?";
         let mut statement = connection.prepare(query).unwrap();
@@ -157,11 +160,13 @@ impl Book {
             pages: textarea[2].clone(),
             volume: textarea[3].clone(),
             edition: textarea[4].clone(),
+            year: textarea[5].clone(),
             series: textarea[6].clone(),
+            publisher: textarea[7].clone(),
             note: textarea[8].clone(),
         };
 
-        // todo! make these a transaction so that if one of the insert()'s fail it will rollback; probably use rusqlite crate instead of sqlite crate and refactor
+        // todo! make these a transaction so that if one of the insert()'s fail it will rollback; probably change to use rusqlite crate instead of sqlite crate and refactor
         let _ = master.insert();
         let _ = book.insert();
         let _ = publisher.insert();
@@ -173,13 +178,11 @@ impl Book {
         let _ = Book::delete(item_id.clone());
     }
 
-    pub fn update_book(textarea: Vec<String>, item_id: String) {
-        // todo! make a new book object
+    pub fn book_update(textarea: Vec<String>, item_id: String) {
         let master = MasterEntries::new_book();
         let publisher = Publisher::new(textarea.clone());
         let year = textarea[5].clone();
         let m_y = MonthYear::new(year);
-        // let book_id = Uuid::new_v4().to_string();
         let book = Book {
             book_id: item_id.clone(),
             cite_key: master.cite_key.clone(),
@@ -190,7 +193,9 @@ impl Book {
             pages: textarea[2].clone(),
             volume: textarea[3].clone(),
             edition: textarea[4].clone(),
+            year: textarea[5].clone(),
             series: textarea[6].clone(),
+            publisher: textarea[7].clone(),
             note: textarea[8].clone(),
         };
         let _ = Book::update(&book, item_id.clone());
@@ -200,7 +205,7 @@ impl Book {
 impl TableInsert for Book {
     fn insert(&self) -> sqlite::Result<State> {
         let connection = sqlite::open(DB_URL).unwrap();
-        let query = "INSERT INTO book VALUES (:book_id, :cite_key, :publisher_id, :month_year_id, :author, :title, :pages, :volume, :edition, :series, :note)";
+        let query = "INSERT INTO book VALUES (:book_id, :cite_key, :publisher_id, :month_year_id, :author, :title, :pages, :volume, :edition, :year, :series, :publisher, :note)";
         let mut statement = connection.prepare(query).unwrap();
         statement
             .bind_iter::<_, (_, Value)>([
@@ -213,7 +218,9 @@ impl TableInsert for Book {
                 (":pages", self.pages.clone().into()),
                 (":volume", self.volume.clone().into()),
                 (":edition", self.edition.clone().into()),
+                (":year", self.year.clone().into()),
                 (":series", self.series.clone().into()),
+                (":publisher", self.publisher.clone().into()),
                 (":note", self.note.clone().into()),
             ])
             .unwrap();
@@ -224,18 +231,20 @@ impl TableInsert for Book {
 impl RowUpdate for Book {
     fn update(&self, item_id: String) -> sqlite::Result<State> {
         let connection = sqlite::open(DB_URL).unwrap();
-        let query = "UPDATE book SET (:author, :title, :pages, :volume, :edition, :series, :note) WHERE cite_key = :cite_key)";
+        let query = "UPDATE book SET author = :author, title = :title, pages = :pages, volume = :volume, edition = :edition, year = :year, series = :series, publisher = :publisher, note = :note WHERE cite_key = :cite_key";
         let mut statement = connection.prepare(query).unwrap();
         statement
             .bind_iter::<_, (_, Value)>([
-                (":cite_key", item_id.into()),
                 (":author", self.author.clone().into()),
-                (":title", self.author.clone().into()),
-                (":pages", self.author.clone().into()),
-                (":volume", self.author.clone().into()),
-                (":edition", self.author.clone().into()),
-                (":series", self.author.clone().into()),
-                (":note", self.author.clone().into()),
+                (":title", self.title.clone().into()),
+                (":pages", self.pages.clone().into()),
+                (":volume", self.volume.clone().into()),
+                (":edition", self.edition.clone().into()),
+                (":year", self.year.clone().into()),
+                (":series", self.series.clone().into()),
+                (":publisher", self.publisher.clone().into()),
+                (":note", self.note.clone().into()),
+                (":cite_key", item_id.into()),
             ])
             .unwrap();
         statement.next()
@@ -253,6 +262,7 @@ impl RowDelete for Book {
         statement.next()
     }
 }
+
 impl MonthYear {
     pub fn new(year: String) -> MonthYear {
         let month_year_id = Uuid::new_v4().to_string();
@@ -298,7 +308,9 @@ impl Article {
             volume: textarea[2].clone(),
             pages: textarea[3].clone(),
             note: textarea[4].clone(),
+            year: textarea[5].clone(),
             edition: textarea[6].clone(),
+            publisher: textarea[7].clone(),
         };
 
         let _ = master.insert();
@@ -312,7 +324,7 @@ impl Article {
         let _ = Article::delete(item_id.clone());
     }
 
-        pub fn update_article(textarea: Vec<String>, item_id: String) {
+    pub fn article_update(textarea: Vec<String>, item_id: String) {
         let master = MasterEntries::new_article();
         let publisher = Publisher::new(textarea.clone());
         let year = textarea[5].clone();
@@ -328,7 +340,9 @@ impl Article {
             volume: textarea[2].clone(),
             pages: textarea[3].clone(),
             note: textarea[4].clone(),
+            year: textarea[5].clone(),
             edition: textarea[6].clone(),
+            publisher: textarea[7].clone(),
         };
         let _ = Article::update(&article, item_id.clone());
     }
@@ -337,7 +351,7 @@ impl Article {
 impl TableInsert for Article {
     fn insert(&self) -> sqlite::Result<State> {
         let connection = sqlite::open(DB_URL).unwrap();
-        let query = "INSERT INTO article VALUES (:cite_key, :article_id, :publisher_id, :month_year_id, :title, :journal, :volume, :pages, :note, :edition)";
+        let query = "INSERT INTO article VALUES (:cite_key, :article_id, :publisher_id, :month_year_id, :title, :journal, :volume, :pages, :note, :year, :edition, :publisher)";
         let mut statement = connection.prepare(query).unwrap();
         statement
             .bind_iter::<_, (_, Value)>([
@@ -350,7 +364,9 @@ impl TableInsert for Article {
                 (":volume", self.volume.clone().into()),
                 (":pages", self.pages.clone().into()),
                 (":note", self.note.clone().into()),
+                (":year", self.year.clone().into()),
                 (":edition", self.edition.clone().into()),
+                (":publisher", self.publisher.clone().into()),
             ])
             .unwrap();
         statement.next()
@@ -372,23 +388,24 @@ impl RowDelete for Article {
 impl RowUpdate for Article {
     fn update(&self, item_id: String) -> sqlite::Result<State> {
         let connection = sqlite::open(DB_URL).unwrap();
-        let query = "UPDATE article SET (:title, :journal, :volume, :pages, :note, :edition) WHERE cite_key = :cite_key)";
+        let query = "UPDATE article SET title = :title, journal = :journal, volume = :volume, pages = :pages, note = :note, year = :year, edition = :edition, publisher = :publisher WHERE cite_key = :cite_key";
         let mut statement = connection.prepare(query).unwrap();
         statement
             .bind_iter::<_, (_, Value)>([
-                (":cite_key", item_id.into()),
                 (":title", self.title.clone().into()),
                 (":journal", self.journal.clone().into()),
                 (":volume", self.volume.clone().into()),
                 (":pages", self.pages.clone().into()),
                 (":note", self.note.clone().into()),
+                (":year", self.year.clone().into()),
                 (":edition", self.edition.clone().into()),
+                (":publisher", self.publisher.clone().into()),
+                (":cite_key", item_id.into()),
             ])
             .unwrap();
         statement.next()
     }
 }
-
 
 impl Publisher {
     pub fn new(vec: Vec<String>) -> Publisher {
