@@ -116,6 +116,8 @@ impl App {
             let menu_titles = self.menu_titles.iter().cloned();
             let active_menu_item = self.active_menu_item;
             let book_list_state = self.book_list_state.clone();
+// todo! use book_list_state.clone_from(self.book_list_state) instead?
+
             let article_list_state = self.article_list_state.clone();
             let book_text_widget = book_text_area.widget();
             let article_text_widget = article_text_area.widget();
@@ -224,19 +226,59 @@ impl App {
                     self.active_menu_item = MenuItem::InsertArticle(InputMode::Command)
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('i'), // Enter edit mode
-                    modifiers,
+                    code: KeyCode::F(2), // Enter edit mode
                     ..
-                })) if KeyModifiers::ALT == modifiers && self.is_command_mode() => {
+                })) => {
                     self.enter_input_mode()
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('x'), // Exit edit mode
-                    modifiers,
+                    code: KeyCode::F(12), // Exit edit mode
                     ..
-                })) if KeyModifiers::ALT == modifiers && !self.is_command_mode() => {
+                })) => {
                     self.exit_input_mode()
                 }
+
+                AppEvent::Input(Event::Key(KeyEvent {
+                    code: KeyCode::Char('u'), // Update selected item
+                    modifiers,
+                    ..
+                })) if KeyModifiers::CONTROL == modifiers => {
+                    if let MenuItem::ShowBooks = self.active_menu_item {
+                        let book_list = App::read_sqlite_book_table().expect("can fetch book list");
+                            let selected = self.book_list_state
+                                .lock()
+                                .expect("can lock list state")
+                                .selected();
+                            let selected_item = book_list
+                                .get(selected.unwrap_or(0))
+                                .expect("exists")
+                                .clone();
+                            let item_id = selected_item.cite_key;
+
+                            App::render_add_book();
+                            // Book::update_book(item_id)
+                            self.update_as_item_type(&book_text_area, item_id.clone());
+                            book_text_area = TextArea::default();
+                            book_text_area.set_block(App::new_book_block());
+
+                    } else if let MenuItem::ListArticles = self.active_menu_item {
+                        let article_list = App::read_sqlite_article_table().expect("can fetch book list");
+
+                            let selected = self.article_list_state
+                                .lock()
+                                .expect("can lock list state")
+                                .selected();
+                            let selected_item = article_list
+                                .get(selected.unwrap_or(0))
+                                .expect("exists")
+                                .clone();
+                            let item_id = selected_item.cite_key;
+
+                            // App::render_add_article();
+
+                    }
+                }
+
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Char('d'), // Delete selected item
                     modifiers,
@@ -258,7 +300,6 @@ impl App {
 
                             Book::delete_book(item_id);
 
-// todo! when I delete the last item in the list and the list is not empy then the selected item doesn't exist
                             // if last item in list move selected item back to top of list
                             let mut lock = self.book_list_state.lock().expect("can lock state");
                             if let Some(selected) = lock.selected() {
@@ -289,8 +330,6 @@ impl App {
 
                             Article::delete_article(item_id);
 
-// todo! when I delete the last item in the list and the list is not empty then the selected item doesn't exist
-
                             // if last item in list move selected item back to top of list
                             let mut lock = self.article_list_state.lock().expect("can lock state");
                             if let Some(selected) = lock.selected() {
@@ -308,10 +347,9 @@ impl App {
                     }
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
-                    code: KeyCode::Char('p'), // Save to database
-                    modifiers,
+                    code: KeyCode::F(9), // Save to database
                     ..
-                })) if KeyModifiers::CONTROL == modifiers => {
+                })) => {
                     if let MenuItem::NewBook(_) = self.active_menu_item {
                         self.save_as_item_type(&book_text_area);
                         book_text_area = TextArea::default();
@@ -416,6 +454,23 @@ impl App {
             Article::article_transaction(text_vec);
         }
     }
+
+    fn update_as_item_type(&mut self, text_area: &TextArea, item_id: String) {
+        if let MenuItem::NewBook(_) = self.active_menu_item {
+            let mut text_vec = Vec::new();
+            for line in text_area.lines() {
+                text_vec.push(line.to_string());
+            }
+            Book::update_book(text_vec, item_id);
+        } else if let MenuItem::InsertArticle(_) = self.active_menu_item {
+            let mut text_vec = Vec::new();
+            for line in text_area.lines() {
+                text_vec.push(line.to_string());
+            }
+            Article::update_article(text_vec, item_id);
+        }
+    }
+
 
     /// Change the state of the app from Command mode to Input mode
     fn enter_input_mode(&mut self) {
@@ -540,15 +595,15 @@ impl App {
             )]),
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled(
-                "Press Alt-I to start editing ",
+                "Press 'F2' to start editing ",
                 Style::default().fg(Color::Cyan),
             )]),
             Line::from(vec![Span::styled(
-                "Press Alt-X to stop editing ",
+                "Press 'F12' to stop editing ",
                 Style::default().fg(Color::Cyan),
             )]),
             Line::from(vec![Span::styled(
-                "Press Ctrl-P to save to database ",
+                "Press 'F9' to save to database ",
                 Style::default().fg(Color::Cyan),
             )]),
         ])
@@ -606,15 +661,15 @@ impl App {
             )]),
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::styled(
-                "Press Alt-I to start editing ",
+                "Press 'F2' to start editing ",
                 Style::default().fg(Color::Cyan),
             )]),
             Line::from(vec![Span::styled(
-                "Press Alt-X to stop editing ",
+                "Press 'F12' to stop editing ",
                 Style::default().fg(Color::Cyan),
             )]),
             Line::from(vec![Span::styled(
-                "Press Ctrl-P to save to database ",
+                "Press 'F9' to save to database ",
                 Style::default().fg(Color::Cyan),
             )]),
         ])
@@ -965,7 +1020,7 @@ impl App {
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::LightCyan))
             .title(
-                "New Book:     Press 'Alt-i' to enter edit mode and 'Alt-x' to exit edit mode     ",
+                "New Book:     Press 'F2' to enter edit mode and 'F9' to exit edit mode     ",
             )
             .border_type(BorderType::Plain);
         new_book
@@ -977,7 +1032,7 @@ impl App {
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::LightCyan))
             .title(
-                "New Article:     Press 'Alt-i to enter edit mode and 'Alt-x' to exit edit mode     ",
+                "New Article:     Press 'F2' to enter edit mode and 'F9' to exit edit mode     ",
             )
             .border_type(BorderType::Plain);
         new_article

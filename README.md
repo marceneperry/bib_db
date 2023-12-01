@@ -18,23 +18,23 @@ Inside the TUI the menu shows the following options:
   - Use up and down arrow keys to move through the list of books in the database
   - Use `Ctrl-D` to delete the selected book
 - `Book Add` Add a new book
-  - To begin editing press `Alt-I`
-  - To exit editing press `Alt-X`
+  - To begin editing press `F2`
+  - To exit editing press `F12`
   - Required fields for the database are labeled red
   - Other fields are optional
-  - After you have entered all data and exited editing mode press `Ctrl-P` to save the book to the database
+  - After you have entered all data and exited editing mode press `F9` to save the book to the database
 - `List Articles` Display a list of articles
   - Use up and down arrow keys to move through the list of books in the database
   - - Use `Ctrl-D` to delete the selected article
 - `Article Add` Add a new article
-    - To begin editing press `Alt-I`
-    - To exit editing press `Alt-X`
+    - To begin editing press `F2`
+    - To exit editing press `F12`
     - Required fields for the database are labeled red
     - Other fields are optional
-    - After you have entered all data and exited editing mode press `Ctrl-P` to save the article to the database
+    - After you have entered all data and exited editing mode press `F9` to save the article to the database
 - `Quit`
   - Exit the program
-  - Must not be in editing mode to quit. If you are in editing mode press `Alt-X` to exit then pres `Q` to quit
+  - Must not be in editing mode to quit. If you are in editing mode press `F12` to exit then pres `Q` to quit
 
 # Tables created
 - Master Entries

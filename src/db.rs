@@ -1,8 +1,8 @@
 use crate::DB_URL;
-use serde::{Deserialize, Serialize};
 use sqlite::{State, Value};
 use uuid::Uuid;
 
+// todo! Implement updating rows
 // todo! Implement remaining relational databases
 
 /// Database Structs and implementations for sql data tables
@@ -12,7 +12,7 @@ pub struct MasterEntries {
     pub(crate) entry_type: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Book {
     pub(crate) book_id: String,
     pub(crate) cite_key: String,
@@ -85,8 +85,13 @@ pub trait TableInsert {
 
 pub trait RowDelete {
     fn delete(item_id: String) -> sqlite::Result<State>;
-    // todo! implement for all current tables
 }
+
+pub trait RowUpdate {
+    fn update(&self, item_id: String) -> sqlite::Result<State>;
+    // todo! implement for Book and Article
+}
+
 
 impl MasterEntries {
     pub fn new_book() -> MasterEntries {
@@ -167,6 +172,29 @@ impl Book {
         let _ = MasterEntries::delete(item_id.clone());
         let _ = Book::delete(item_id.clone());
     }
+
+    pub fn update_book(textarea: Vec<String>, item_id: String) {
+        // todo! make a new book object
+        let master = MasterEntries::new_book();
+        let publisher = Publisher::new(textarea.clone());
+        let year = textarea[5].clone();
+        let m_y = MonthYear::new(year);
+        // let book_id = Uuid::new_v4().to_string();
+        let book = Book {
+            book_id: item_id.clone(),
+            cite_key: master.cite_key.clone(),
+            publisher_id: publisher.publisher_id.clone(),
+            month_year_id: m_y.month_year_id.clone(),
+            author: textarea[0].clone(),
+            title: textarea[1].clone(),
+            pages: textarea[2].clone(),
+            volume: textarea[3].clone(),
+            edition: textarea[4].clone(),
+            series: textarea[6].clone(),
+            note: textarea[8].clone(),
+        };
+        let _ = Book::update(&book, item_id.clone());
+    }
 }
 
 impl TableInsert for Book {
@@ -187,6 +215,27 @@ impl TableInsert for Book {
                 (":edition", self.edition.clone().into()),
                 (":series", self.series.clone().into()),
                 (":note", self.note.clone().into()),
+            ])
+            .unwrap();
+        statement.next()
+    }
+}
+
+impl RowUpdate for Book {
+    fn update(&self, item_id: String) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "UPDATE book SET (:author, :title, :pages, :volume, :edition, :series, :note) WHERE cite_key = :cite_key)";
+        let mut statement = connection.prepare(query).unwrap();
+        statement
+            .bind_iter::<_, (_, Value)>([
+                (":cite_key", item_id.into()),
+                (":author", self.author.clone().into()),
+                (":title", self.author.clone().into()),
+                (":pages", self.author.clone().into()),
+                (":volume", self.author.clone().into()),
+                (":edition", self.author.clone().into()),
+                (":series", self.author.clone().into()),
+                (":note", self.author.clone().into()),
             ])
             .unwrap();
         statement.next()
@@ -262,6 +311,27 @@ impl Article {
         let _ = MasterEntries::delete(item_id.clone());
         let _ = Article::delete(item_id.clone());
     }
+
+        pub fn update_article(textarea: Vec<String>, item_id: String) {
+        let master = MasterEntries::new_article();
+        let publisher = Publisher::new(textarea.clone());
+        let year = textarea[5].clone();
+        let m_y = MonthYear::new(year);
+        // let article_id = Uuid::new_v4().to_string();
+        let article = Article {
+            cite_key: master.cite_key.clone(),
+            article_id: item_id.clone(),
+            publisher_id: publisher.publisher_id.clone(),
+            month_year_id: m_y.month_year_id.clone(),
+            title: textarea[0].clone(),
+            journal: textarea[1].clone(),
+            volume: textarea[2].clone(),
+            pages: textarea[3].clone(),
+            note: textarea[4].clone(),
+            edition: textarea[6].clone(),
+        };
+        let _ = Article::update(&article, item_id.clone());
+    }
 }
 
 impl TableInsert for Article {
@@ -298,6 +368,27 @@ impl RowDelete for Article {
         statement.next()
     }
 }
+
+impl RowUpdate for Article {
+    fn update(&self, item_id: String) -> sqlite::Result<State> {
+        let connection = sqlite::open(DB_URL).unwrap();
+        let query = "UPDATE article SET (:title, :journal, :volume, :pages, :note, :edition) WHERE cite_key = :cite_key)";
+        let mut statement = connection.prepare(query).unwrap();
+        statement
+            .bind_iter::<_, (_, Value)>([
+                (":cite_key", item_id.into()),
+                (":title", self.title.clone().into()),
+                (":journal", self.journal.clone().into()),
+                (":volume", self.volume.clone().into()),
+                (":pages", self.pages.clone().into()),
+                (":note", self.note.clone().into()),
+                (":edition", self.edition.clone().into()),
+            ])
+            .unwrap();
+        statement.next()
+    }
+}
+
 
 impl Publisher {
     pub fn new(vec: Vec<String>) -> Publisher {
