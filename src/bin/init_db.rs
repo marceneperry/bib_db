@@ -28,7 +28,9 @@ fn init_db() {
         pages       VARCHAR,
         volume      VARCHAR,
         edition     VARCHAR,
+        year        VARCHAR,
         series      VARCHAR,
+        publisher   VARCHAR,
         note        VARCHAR
     );
 
@@ -78,7 +80,9 @@ fn init_db() {
         volume          VARCHAR,
         pages           VARCHAR,
         note            VARCHAR,
-        edition         VARCHAR
+        year            VARCHAR,
+        edition         VARCHAR,
+        publisher       VARCHAR
     );";
 
     connection.execute(query).unwrap();
