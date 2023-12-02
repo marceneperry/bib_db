@@ -20,7 +20,6 @@ use std::time::{Duration, Instant};
 use tui_textarea::TextArea;
 
 // currently only adding new items. later add ability to search and edit items.
-// todo! implement update row
 // todo! implement show ALL items sorted by cite_key?
 
 #[derive(Copy, Clone, Debug)]
@@ -137,7 +136,11 @@ impl App {
 
                 // Change to a different menu item
                 match active_menu_item {
-                    MenuItem::Home => frame.render_widget(App::render_home(), chunks[1]),
+                    MenuItem::Home => {
+                        let (left, right) = App::render_home();
+                        frame.render_widget(left, App::home_panes(chunks.clone())[0]);
+                        frame.render_widget(right, App::home_panes(chunks.clone())[1]);
+                    }
                     MenuItem::ShowBooks => {
                         let mut lock = book_list_state.lock().expect("can lock state");
                         if lock.selected().is_none() {
@@ -930,9 +933,8 @@ impl App {
     }
 
     /// UI for rendering the home section
-    // todo! make two paragraphs side by side. More info on hot keys
-    fn render_home() -> Paragraph<'static> {
-        return Paragraph::new(vec![
+    fn render_home() -> (Paragraph<'static>, Paragraph<'static>) {
+        let left = Paragraph::new(vec![
             Line::from(vec![Span::raw("")]),
             Line::from(vec![Span::raw("Welcome to")]),
             Line::from(vec![Span::raw("")]),
@@ -967,7 +969,7 @@ impl App {
                 Style::default().fg(Color::Cyan),
             )]),
         ])
-        .alignment(Alignment::Center)
+        .alignment(Alignment::Left)
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -975,6 +977,27 @@ impl App {
                 .title("Home")
                 .border_type(BorderType::Plain),
         );
+
+        let right = Paragraph::new(vec![
+            Line::from(vec![Span::raw("")]),
+            Line::from(vec![Span::raw("Editing Tips")]),
+            Line::from(vec![Span::raw("")]),
+            Line::from(vec![Span::raw("'F2' to begin editing")]),
+            Line::from(vec![Span::raw("'F9' to save to database")]),
+            Line::from(vec![Span::raw("'F12' to exit editing without saving")]),
+            Line::from(vec![Span::raw("")]),
+            Line::from(vec![Span::raw("'Ctrl-D' to Delete current item in list")]),
+            Line::from(vec![Span::raw("'Ctrl-U' to Update current item in list")]),
+        ])
+        .alignment(Alignment::Left)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::White))
+                .title("Editing Hot Keys")
+                .border_type(BorderType::Plain),
+        );
+        (left, right)
     }
 
     /// UI for rendering the copyright section
@@ -1005,6 +1028,15 @@ impl App {
                 .as_ref(),
             )
             .split(rect);
+    }
+
+    /// Define `home` sections
+    fn home_panes(rect: Rc<[Rect]>) -> Rc<[Rect]> {
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .split(rect[1]);
+        chunks
     }
 
     /// Define `show_` sections

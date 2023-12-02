@@ -3,7 +3,6 @@ use sqlite::{State, Value};
 use std::string::String;
 use uuid::Uuid;
 
-// todo! Implement updating rows
 // todo! Implement remaining relational databases
 
 /// Database Structs and implementations for sql data tables
