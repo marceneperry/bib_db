@@ -1,5 +1,6 @@
 mod app;
 mod db;
+mod ui;
 
 use crate::app::App;
 use crossterm::execute;
