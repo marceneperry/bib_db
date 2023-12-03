@@ -1,5 +1,6 @@
 use crate::DB_URL;
 use sqlite::{State, Value};
+use std::io::Error;
 use std::string::String;
 use uuid::Uuid;
 
@@ -293,6 +294,33 @@ impl RowSelect for Book {
     }
 }
 
+/// Read the sqlite database book table and returns a vector of book objects
+pub fn read_sqlite_book_table() -> Result<Vec<Book>, Error> {
+    let connection = sqlite::open(DB_URL).unwrap();
+    let query = "SELECT book_id, cite_key, publisher_id, month_year_id, author, title, pages, volume, edition, year, series, publisher, note FROM book";
+    let mut statement = connection.prepare(query).unwrap();
+    let mut parsed = Vec::new();
+
+    while let Ok(State::Row) = statement.next() {
+        parsed.push(Book {
+            book_id: statement.read::<String, _>("book_id").unwrap(),
+            cite_key: statement.read::<String, _>("cite_key").unwrap(),
+            publisher_id: statement.read::<String, _>("publisher_id").unwrap(),
+            month_year_id: statement.read::<String, _>("month_year_id").unwrap(),
+            author: statement.read::<String, _>("author").unwrap(),
+            title: statement.read::<String, _>("title").unwrap(),
+            pages: statement.read::<String, _>("pages").unwrap(),
+            volume: statement.read::<String, _>("volume").unwrap(),
+            edition: statement.read::<String, _>("edition").unwrap(),
+            year: statement.read::<String, _>("year").unwrap(),
+            series: statement.read::<String, _>("series").unwrap(),
+            publisher: statement.read::<String, _>("publisher").unwrap(),
+            note: statement.read::<String, _>("note").unwrap(),
+        })
+    }
+    Ok(parsed)
+}
+
 impl MonthYear {
     pub fn new(year: String) -> MonthYear {
         let month_year_id = Uuid::new_v4().to_string();
@@ -464,6 +492,32 @@ impl RowSelect for Article {
         }
         text_vec
     }
+}
+
+/// Read the sqlite database article table and returns a vector of article objects
+pub fn read_sqlite_article_table() -> Result<Vec<Article>, Error> {
+    let connection = sqlite::open(DB_URL).unwrap();
+    let query = "SELECT cite_key, article_id, publisher_id, month_year_id, title, journal, volume, pages, note, year, edition, publisher FROM article";
+    let mut statement = connection.prepare(query).unwrap();
+    let mut parsed = Vec::new();
+
+    while let Ok(State::Row) = statement.next() {
+        parsed.push(Article {
+            cite_key: statement.read::<String, _>("cite_key").unwrap(),
+            article_id: statement.read::<String, _>("article_id").unwrap(),
+            publisher_id: statement.read::<String, _>("publisher_id").unwrap(),
+            month_year_id: statement.read::<String, _>("month_year_id").unwrap(),
+            title: statement.read::<String, _>("title").unwrap(),
+            journal: statement.read::<String, _>("journal").unwrap(),
+            pages: statement.read::<String, _>("pages").unwrap(),
+            volume: statement.read::<String, _>("volume").unwrap(),
+            note: statement.read::<String, _>("note").unwrap(),
+            year: statement.read::<String, _>("year").unwrap(),
+            edition: statement.read::<String, _>("edition").unwrap(),
+            publisher: statement.read::<String, _>("publisher").unwrap(),
+        })
+    }
+    Ok(parsed)
 }
 
 impl Publisher {
