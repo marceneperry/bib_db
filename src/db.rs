@@ -579,3 +579,17 @@ impl TableInsert for Publisher {
 //         };
 //     }
 // }
+
+// #[cfg(test)]
+// mod test {
+//     /// Initialize a memory test by using MEM_DB as the connection path in init_db and running `cargo --bin init_db`
+//     use super::*;
+//     const MEM_DB: &str = ":memory:";
+//
+//     #[test]
+//     fn test_sqlite_connection() {
+//         let connection = sqlite::open(DB_URL).unwrap();
+//     }
+//
+//     // assert!()
+// }
