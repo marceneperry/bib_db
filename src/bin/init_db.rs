@@ -6,6 +6,7 @@ fn main() {
 }
 
 const DB_URL: &str = "sqlite://../bibliographic_db/bib_data.db";
+const MEM_DB: &str = ":memory:";
 
 /// Initialize the database with tables
 fn init_db() {
