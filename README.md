@@ -8,6 +8,8 @@ card catalog'.
 This is a TUI (Terminal User Interface) program that allows a user to store and retrieve data from an SQLite database.
 Still in development phase.
 
+![img.png](img.png)
+
 # First usage
 
 For the first time using the application, initialize an SQLite database using `cargo run --bin init_db`
