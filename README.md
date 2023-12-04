@@ -8,7 +8,13 @@ card catalog'.
 This is a TUI (Terminal User Interface) program that allows a user to store and retrieve data from an SQLite database.
 Still in development phase.
 
+![img.png](img.png)
+
 [demo.mp4](demo.mp4)
+<video width="320" height="240" controls>
+  <source src="demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 # First usage
 
