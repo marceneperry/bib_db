@@ -12,7 +12,6 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tui_textarea::TextArea;
 
-// currently only adding new items. later add ability to search.
 // todo! add data to the database for demo
 // todo! implement show ALL items sorted by cite_key?
 
