@@ -8,14 +8,6 @@ card catalog'.
 This is a TUI (Terminal User Interface) program that allows a user to store and retrieve data from an SQLite database.
 Still in development phase.
 
-![demo.gif](demo.gif)
-
-[//]: # ([![It's a miracle]&#40;img.png&#41;]&#40;demo720p.mp4 "It's a miracle"&#41;)
-
-[//]: # ()
-
-[//]: # ([![img.png]&#40;img.png&#41;]&#40;demo720p.mp4&#41;)
-
 # First usage
 
 For the first time using the application, initialize an SQLite database using `cargo run --bin init_db`
@@ -52,6 +44,10 @@ Inside the TUI the menu shows the following options:
 - `Quit`
     - Exit the program
     - Must not be in editing mode to quit. If you are in editing mode press `F12` to exit then pres `Q` to quit
+
+# Demonstration video
+
+https://github.com/marceneperry/bib_db/assets/111263828/7dbc348c-4000-494a-9162-1300fde97cf5
 
 # Tables created
 
