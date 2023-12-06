@@ -12,7 +12,7 @@ use ratatui::Terminal;
 use std::error::Error;
 
 /// If database is not already created, initialize it by running `init_db` binary crate.
-/// Update const DB_URL to match what you have named it in `init_db`
+/// Update const `DB_URL` to match what you have named it in `init_db`
 const DB_URL: &str = "sqlite://../bibliographic_db/bib_data.db";
 
 fn main() -> Result<(), Box<dyn Error>> {

@@ -12,8 +12,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tui_textarea::TextArea;
 
-// todo! add data to the database for demo
-// todo! implement show ALL items sorted by cite_key?
+// todo! Future implementation show ALL items sorted by cite_key?
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum InputMode {
@@ -29,7 +28,7 @@ pub(crate) enum AppEvent<I> {
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum MenuItem {
-    // todo! future version do sub menus:
+    // todo! Future implementation: do sub menus:
     // `Home` `Display All Items` `Books` `Articles` `Quit`
     // `Books`: `Display All` `Add New Book` `Delete Book` `Find Book`
     // `Articles`: `Display All` `Add New Article` `Delete Article` `Find Article`
@@ -91,10 +90,10 @@ impl App {
         thread::spawn(move || {
             let mut last_tick = Instant::now();
             loop {
-                if let Event::Key(key) = event::read().expect("can read events") {
+                if let Event::Key(key) = event::read().expect("should read events") {
                     if key.kind == KeyEventKind::Press {
                         tx.send(AppEvent::Input(Event::Key(key)))
-                            .expect("can send events");
+                            .expect("should send events");
                     }
                 }
 
@@ -108,7 +107,7 @@ impl App {
         let mut article_text_area = TextArea::default();
 
         loop {
-            let terminal_size = terminal.size().expect("can size terminal");
+            let terminal_size = terminal.size().expect("should size terminal");
             let menu_titles = self.menu_titles.iter().cloned();
             let active_menu_item = self.active_menu_item;
             let book_list_state = self.book_list_state.clone();
@@ -118,6 +117,7 @@ impl App {
             article_text_area.set_block(new_article_block(self.update_flag));
             let article_text_widget = article_text_area.widget();
 
+            // todo! Future implementation: Move the terminal to a tui.rs?
             terminal.draw(move |frame| {
                 let chunks = panes(terminal_size);
 
@@ -132,14 +132,14 @@ impl App {
                         frame.render_widget(right, home_panes(chunks.clone())[1]);
                     }
                     MenuItem::ShowBooks => {
-                        let mut lock = book_list_state.lock().expect("can lock state");
+                        let mut lock = book_list_state.lock().expect("should lock state");
                         if lock.selected().is_none() {
                             lock.select(Some(0));
                         }
                         drop(lock);
 
                         let (left, middle, right) = render_books(book_list_state.clone());
-                        let mut lock = book_list_state.lock().expect("can lock state");
+                        let mut lock = book_list_state.lock().expect("should lock state");
                         frame.render_stateful_widget(
                             left,
                             show_panes(chunks.clone())[0],
@@ -154,14 +154,14 @@ impl App {
                         frame.render_widget(book_text_widget, add_panes(chunks.clone())[1]);
                     }
                     MenuItem::ListArticles => {
-                        let mut lock = article_list_state.lock().expect("can lock state");
+                        let mut lock = article_list_state.lock().expect("should lock state");
                         if lock.selected().is_none() {
                             lock.select(Some(0));
                         }
                         drop(lock);
 
                         let (left, middle, right) = render_articles(article_list_state.clone());
-                        let mut lock = article_list_state.lock().expect("can lock state");
+                        let mut lock = article_list_state.lock().expect("should lock state");
                         frame.render_stateful_widget(
                             left,
                             show_panes(chunks.clone())[0],
@@ -187,8 +187,8 @@ impl App {
                     code: KeyCode::Char('q'), // Quit
                     ..
                 })) if self.is_command_mode() => {
-                    disable_raw_mode().expect("can disable raw mode");
-                    terminal.show_cursor().expect("can show cursor");
+                    disable_raw_mode().expect("should disable raw mode");
+                    terminal.show_cursor().expect("should show cursor");
                     break;
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
@@ -203,7 +203,7 @@ impl App {
                     code: KeyCode::Char('b'), // Add a new book
                     ..
                 })) if self.is_command_mode() => {
-                    self.active_menu_item = MenuItem::NewBook(InputMode::Command)
+                    self.active_menu_item = MenuItem::NewBook(InputMode::Command);
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Char('l'), // Show a list of articles
@@ -213,20 +213,20 @@ impl App {
                     code: KeyCode::Char('a'), // Add a new article
                     ..
                 })) if self.is_command_mode() => {
-                    self.active_menu_item = MenuItem::InsertArticle(InputMode::Command)
+                    self.active_menu_item = MenuItem::InsertArticle(InputMode::Command);
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::F(2), // Enter edit mode
                     ..
                 })) => {
-                    self.enter_input_mode()
+                    self.enter_input_mode();
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::F(12), // Exit edit mode
                     ..
                 })) => {
                     self.update_flag = false;
-                    self.exit_input_mode()
+                    self.exit_input_mode();
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::F(9), // Save to database
@@ -242,7 +242,7 @@ impl App {
                         article_text_area.set_block(new_article_block(false));
                     }
                     self.update_flag = false;
-                    self.exit_input_mode()
+                    self.exit_input_mode();
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Char('u'), // Update selected item
@@ -271,17 +271,17 @@ impl App {
                     ..
                 })) if KeyModifiers::CONTROL == modifiers => {
                     if let MenuItem::ShowBooks = self.active_menu_item {
-                        let book_list = read_sqlite_book_table().expect("can fetch book list");
+                        let book_list = read_sqlite_book_table().expect("should fetch book list");
                         if book_list.is_empty() {
                         } else {
                             self.get_item_id();
                             Book::delete_book(self.update_item_id.clone());
 
                             // if last item in list move selected item back to top of list
-                            let mut lock = self.book_list_state.lock().expect("can lock state");
+                            let mut lock = self.book_list_state.lock().expect("should lock state");
                             if let Some(selected) = lock.selected() {
                                 let amount_books = read_sqlite_book_table()
-                                    .expect("can fetch book list")
+                                    .expect("should fetch book list")
                                     .len();
                                 if amount_books == 0 {}
                                 else if selected >= amount_books - 1 {
@@ -292,17 +292,17 @@ impl App {
                             }
                         }
                     } else if let MenuItem::ListArticles = self.active_menu_item {
-                        let article_list = read_sqlite_article_table().expect("can fetch book list");
+                        let article_list = read_sqlite_article_table().expect("should fetch book list");
                         if article_list.is_empty() {
                         } else {
                             self.get_item_id();
                             Article::delete_article(self.update_item_id.clone());
 
                             // if last item in list move selected item back to top of list
-                            let mut lock = self.article_list_state.lock().expect("can lock state");
+                            let mut lock = self.article_list_state.lock().expect("should lock state");
                             if let Some(selected) = lock.selected() {
                                 let amount_books = read_sqlite_article_table()
-                                    .expect("can fetch book list")
+                                    .expect("should fetch book list")
                                     .len();
                                 if amount_books == 0 {}
                                 else if selected >= amount_books - 1 {
@@ -318,10 +318,10 @@ impl App {
                     code: KeyCode::Down, .. // Move down in the list of books or articles; wraps around
                 })) if self.is_command_mode() => {
                     if let MenuItem::ShowBooks = self.active_menu_item {
-                        let mut lock = self.book_list_state.lock().expect("can lock state");
+                        let mut lock = self.book_list_state.lock().expect("should lock state");
                         if let Some(selected) = lock.selected() {
                             let amount_books = read_sqlite_book_table()
-                                .expect("can fetch book list")
+                                .expect("should fetch book list")
                                 .len();
                             if selected >= amount_books - 1 {
                                 lock.select(Some(0));
@@ -331,10 +331,10 @@ impl App {
                         }
                         drop(lock);
                     } else if let MenuItem::ListArticles = self.active_menu_item {
-                        let mut lock = self.article_list_state.lock().expect("can lock state");
+                        let mut lock = self.article_list_state.lock().expect("should lock state");
                         if let Some(selected) = lock.selected() {
                             let amount_articles = read_sqlite_article_table()
-                                .expect("can fetch book list")
+                                .expect("should fetch book list")
                                 .len();
                             if selected >= amount_articles - 1 {
                                 lock.select(Some(0));
@@ -342,17 +342,17 @@ impl App {
                                 lock.select(Some(selected + 1));
                             }
                         }
-                        drop(lock)
+                        drop(lock);
                     }
                 }
                 AppEvent::Input(Event::Key(KeyEvent {
                     code: KeyCode::Up, .. // Move up in the list of books or articles; wraps around
                 })) if self.is_command_mode() => {
                     if let MenuItem::ShowBooks = self.active_menu_item {
-                        let mut lock = self.book_list_state.lock().expect("can lock state");
+                        let mut lock = self.book_list_state.lock().expect("should lock state");
                         if let Some(selected) = lock.selected() {
                             let amount_books = read_sqlite_book_table()
-                                .expect("can fetch book list")
+                                .expect("should fetch book list")
                                 .len();
                             if selected > 0 {
                                 lock.select(Some(selected - 1));
@@ -360,12 +360,12 @@ impl App {
                                 lock.select(Some(amount_books - 1));
                             }
                         }
-                        drop(lock)
+                        drop(lock);
                     } else if let MenuItem::ListArticles = self.active_menu_item {
-                        let mut lock = self.article_list_state.lock().expect("can lock state");
+                        let mut lock = self.article_list_state.lock().expect("should lock state");
                         if let Some(selected) = lock.selected() {
                             let amount_articles = read_sqlite_article_table()
-                                .expect("can fetch book list")
+                                .expect("should fetch book list")
                                 .len();
                             if selected > 0 {
                                 lock.select(Some(selected - 1));
@@ -373,7 +373,7 @@ impl App {
                                 lock.select(Some(amount_articles - 1));
                             }
                         }
-                        drop(lock)
+                        drop(lock);
                     }
                 }
                 AppEvent::Tick => {}
@@ -386,21 +386,21 @@ impl App {
                         article_text_area.input(input);
                     }
                 }
-                _ => {}
+                AppEvent::Input(_) => {}
             };
         }
         Ok(())
     }
 
-    /// Retrieves cite_key of current item (book or article); Used to update or delete an item.
+    /// Retrieves `cite_key` of current item (`book` or `article`); Used to update or delete an item.
     fn get_item_id(&mut self) {
-        self.update_item_id = "".to_string();
+        self.update_item_id = String::new();
         if let MenuItem::ShowBooks = self.active_menu_item {
-            let book_list = read_sqlite_book_table().expect("can fetch book list");
+            let book_list = read_sqlite_book_table().expect("should fetch book list");
             let selected = self
                 .book_list_state
                 .lock()
-                .expect("can lock list state")
+                .expect("should lock list state")
                 .selected();
             let selected_item = book_list
                 .get(selected.unwrap_or(0))
@@ -408,11 +408,11 @@ impl App {
                 .clone();
             self.update_item_id = selected_item.cite_key.clone();
         } else if let MenuItem::ListArticles = self.active_menu_item {
-            let article_list = read_sqlite_article_table().expect("can fetch book list");
+            let article_list = read_sqlite_article_table().expect("should fetch book list");
             let selected = self
                 .article_list_state
                 .lock()
-                .expect("can lock list state")
+                .expect("should lock list state")
                 .selected();
             let selected_item = article_list
                 .get(selected.unwrap_or(0))
@@ -446,19 +446,19 @@ impl App {
     /// Change the state of the app from Command mode to Input mode
     fn enter_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Command) = self.active_menu_item {
-            self.active_menu_item = MenuItem::NewBook(InputMode::Input)
+            self.active_menu_item = MenuItem::NewBook(InputMode::Input);
         }
         if let MenuItem::InsertArticle(InputMode::Command) = self.active_menu_item {
-            self.active_menu_item = MenuItem::InsertArticle(InputMode::Input)
+            self.active_menu_item = MenuItem::InsertArticle(InputMode::Input);
         }
     }
 
     /// Change the state of the app from Input mode to Command mode
     fn exit_input_mode(&mut self) {
         if let MenuItem::NewBook(InputMode::Input) = self.active_menu_item {
-            self.active_menu_item = MenuItem::NewBook(InputMode::Command)
+            self.active_menu_item = MenuItem::NewBook(InputMode::Command);
         } else if let MenuItem::InsertArticle(InputMode::Input) = self.active_menu_item {
-            self.active_menu_item = MenuItem::InsertArticle(InputMode::Command)
+            self.active_menu_item = MenuItem::InsertArticle(InputMode::Command);
         }
     }
 

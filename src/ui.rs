@@ -34,7 +34,7 @@ pub fn menu<'a>(titles: Cloned<Iter<'a, &'static str>>, select: usize) -> Tabs<'
         .divider(Span::raw("|"));
 }
 
-/// UI for new_book
+/// UI for `new_book`
 // todo! combine block for book and article?
 pub fn new_book_block(x: bool) -> Block<'static> {
     if !x {
@@ -54,7 +54,7 @@ pub fn new_book_block(x: bool) -> Block<'static> {
     }
 }
 
-/// UI for new_article
+/// UI for `new_article`
 pub fn new_article_block(x: bool) -> Block<'static> {
     if !x {
         let new_article = Block::default()
@@ -218,7 +218,7 @@ pub fn render_books(
         .border_type(BorderType::Plain);
 
     let items: Vec<_> = read_sqlite_book_table()
-        .expect("can fetch book list")
+        .expect("should fetch book list")
         .iter()
         .map(|book| {
             ListItem::new(Line::from(vec![Span::styled(
@@ -235,13 +235,16 @@ pub fn render_books(
             .add_modifier(Modifier::BOLD),
     );
 
-    let book_list = read_sqlite_book_table().expect("can fetch book list");
+    let book_list = read_sqlite_book_table().expect("should fetch book list");
     if book_list.is_empty() {
         let book_detail = Paragraph::default();
         return (list, header, book_detail);
     }
 
-    let selected = book_list_state.lock().expect("can lock state").selected();
+    let selected = book_list_state
+        .lock()
+        .expect("should lock state")
+        .selected();
     let selected_book = book_list
         .get(selected.unwrap_or(0))
         .expect("exists")
@@ -346,7 +349,7 @@ pub fn render_articles(
         .border_type(BorderType::Plain);
 
     let items: Vec<_> = read_sqlite_article_table()
-        .expect("can fetch article list")
+        .expect("should fetch article list")
         .iter()
         .map(|article| {
             ListItem::new(Line::from(vec![Span::styled(
@@ -363,7 +366,7 @@ pub fn render_articles(
             .add_modifier(Modifier::BOLD),
     );
 
-    let article_list = read_sqlite_article_table().expect("can fetch article list");
+    let article_list = read_sqlite_article_table().expect("should fetch article list");
     if article_list.is_empty() {
         let article_detail = Paragraph::default();
         return (list, header, article_detail);
@@ -371,7 +374,7 @@ pub fn render_articles(
 
     let selected = article_list_state
         .lock()
-        .expect("can lock article state")
+        .expect("should lock article state")
         .selected();
     let selected_article = article_list
         .get(selected.unwrap_or(0))

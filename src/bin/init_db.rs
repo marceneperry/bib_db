@@ -1,4 +1,4 @@
-/// Functions for initializing SQLite database
+/// Functions for initializing `SQLite` database
 /// If this is the first time using the application you can run this as `cargo run --bin init_db`
 /// It will setup the database and initialize the base tables.
 fn main() {
@@ -6,7 +6,6 @@ fn main() {
 }
 
 const DB_URL: &str = "sqlite://../bibliographic_db/bib_data.db";
-// const MEM_DB: &str = ":memory:";
 
 /// Initialize the database with tables
 fn init_db() {
