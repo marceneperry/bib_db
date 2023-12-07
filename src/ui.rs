@@ -8,6 +8,8 @@ use std::rc::Rc;
 use std::slice::Iter;
 use std::sync::{Arc, Mutex};
 
+/// UI for the tui app
+
 /// UI for Menu bar
 // todo! change underlined letter on menu bar?
 pub fn menu<'a>(titles: Cloned<Iter<'a, &'static str>>, select: usize) -> Tabs<'a> {
@@ -73,7 +75,7 @@ pub fn new_article_block(x: bool) -> Block<'static> {
     }
 }
 
-/// UI for rendering the copyright section
+/// UI for rendering the `copyright` section
 pub fn copyright() -> Paragraph<'static> {
     return Paragraph::new("Library DB 2023 - all rights reserved")
         .style(Style::default().fg(Color::Rgb(35, 70, 184)))
@@ -404,7 +406,7 @@ pub fn render_articles(
     (list, header, article_detail)
 }
 
-/// UI for rendering the home section
+/// UI for rendering the `home` section
 pub fn render_home() -> (Paragraph<'static>, Paragraph<'static>) {
     let left = Paragraph::new(vec![
         Line::from(vec![Span::raw("")]),
@@ -472,7 +474,7 @@ pub fn render_home() -> (Paragraph<'static>, Paragraph<'static>) {
     (left, right)
 }
 
-/// UI for adding a new article
+/// UI for adding a new `article`
 pub fn render_add_article() -> Paragraph<'static> {
     return Paragraph::new(vec![
         Line::from(vec![Span::raw("")]),
@@ -534,7 +536,7 @@ pub fn render_add_article() -> Paragraph<'static> {
     .alignment(Alignment::Right);
 }
 
-/// UI for adding a new book
+/// UI for adding a new `book`
 pub fn render_add_book() -> Paragraph<'static> {
     return Paragraph::new(vec![
         Line::from(vec![Span::raw("")]),

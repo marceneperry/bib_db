@@ -4,9 +4,8 @@ use std::io::Error;
 use std::string::String;
 use uuid::Uuid;
 
+/// Database Structs and implementations for `SQLite` data tables
 // todo! Implement remaining relational databases
-
-/// Database Structs and implementations for sql data tables
 #[derive(Clone, Debug)]
 pub struct MasterEntries {
     pub(crate) cite_key: String,
@@ -123,7 +122,7 @@ impl RowDelete for MasterEntries {
 }
 
 impl Book {
-    /// Create and Add book to `SQLite` database
+    /// Create and add `book` to `SQLite` database
     pub fn book_transaction(textarea: Vec<String>) {
         let master = MasterEntries::new_book();
         let publisher = Publisher::new(textarea[7].clone());
@@ -153,13 +152,13 @@ impl Book {
         let _ = m_y.insert();
     }
 
-    /// Removes item from book and `master_entries` tables
+    /// Remove item from `book` and `master_entries` tables
     pub fn delete_book(item_id: String) {
         let _ = MasterEntries::delete(item_id.clone());
         let _ = Book::delete(item_id.clone());
     }
 
-    /// Updates the data in the `book` table
+    /// Update the data in the `book` table
     pub fn book_update(textarea: Vec<String>, item_id: String) {
         let book = Book {
             book_id: item_id.clone(),
@@ -272,7 +271,7 @@ impl RowSelect for Book {
 }
 
 // todo! test? Other tests test this logic
-/// Read the sqlite database book table and returns a vector of book objects
+/// Read the `SQLite` database `book` table and returns a vector of `book` objects
 pub fn read_sqlite_book_table() -> Result<Vec<Book>, Error> {
     let connection = sqlite::open(DB_URL).unwrap();
     let query = "SELECT book_id, cite_key, publisher_id, month_year_id, author, title, pages, volume, edition, year, series, publisher, note FROM book";
@@ -327,7 +326,7 @@ impl TableInsert for MonthYear {
 }
 
 impl Article {
-    /// Create and Add article to `SQLite` database
+    /// Create and add `article` to `SQLite` database
     pub(crate) fn article_transaction(textarea: Vec<String>) {
         let master = MasterEntries::new_article();
         let publisher = Publisher::new(textarea[7].clone());
@@ -467,7 +466,7 @@ impl RowSelect for Article {
     }
 }
 
-/// Read the sqlite database article table and returns a vector of article objects
+/// Read the `SQLite` database `article` table and returns a vector of `article` objects
 // todo! test? Other tests test this logic
 pub fn read_sqlite_article_table() -> Result<Vec<Article>, Error> {
     let connection = sqlite::open(DB_URL).unwrap();
@@ -521,116 +520,6 @@ impl TableInsert for Publisher {
         statement.next()
     }
 }
-
-// Implement Later
-// #[derive(Clone, Debug)]
-// pub struct Relationship {
-//     pub(crate) parent_id: String,
-//     pub(crate) child_id: String,
-//     pub(crate) cite_key: String,
-// }
-
-// Implement Later
-// #[derive(Clone, Debug)]
-// pub struct Author {
-//     pub(crate) cite_key: String,
-//     pub(crate) author_id: String,
-//     pub(crate) authors: String,
-// }
-
-// Implement Later
-// #[derive(Clone, Debug)]
-// pub struct Organizations {
-//     pub(crate) organization_id: String,
-//     pub(crate) organization: String,
-//     pub(crate) address: String,
-// }
-
-// impl Relationship {
-//     pub fn new(master_key: String) -> Relationship {
-//         let parent_id = Uuid::new_v4().to_string();
-//         let child_id = Uuid::new_v4().to_string();
-//         Relationship {
-//             parent_id,
-//             child_id,
-//             cite_key: master_key,
-//         }
-//     }
-// }
-//
-// impl TableInsert for Relationship {
-//     fn insert(&self) {
-//         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
-//         let result = sqlx::query("INSERT INTO relationship (parent_id, child_id, cite_key) VALUES (?,?,?,)")
-//             .bind(&self.parent_id)
-//             .bind(&self.child_id)
-//             .bind(&self.cite_key)
-//             .execute(&*db)
-//             .await;
-//
-//         match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//         };
-//     }
-// }
-
-// // Implement later
-// impl Author {
-//     pub fn new(master_key: String) -> Author {
-//         let author_id = Uuid::new_v4().to_string();
-//         Author {
-//             cite_key: master_key,
-//             author_id,
-//             authors: String::new(),
-//         }
-//     }
-// }
-//
-// impl TableInsert for Author {
-//     fn insert(&self) {
-//         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
-//         let result = sqlx::query("INSERT INTO author (cite_key, author_id, authors) VALUES (?,?,?,)")
-//             .bind(&self.cite_key)
-//             .bind(&self.author_id)
-//             .bind(&self.authors)
-//             .execute(&*db)
-//             .await;
-//
-//         match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//         };
-//     }
-// }
-// // Implement later
-// impl Organizations {
-//     pub fn new() -> Organizations {
-//         let organization_id = Uuid::new_v4().to_string();
-//         Organizations {
-//             organization_id,
-//             organization: String::new(),
-//             address: String::new(),
-//         }
-//     }
-// }
-//
-// impl TableInsert for Organizations {
-//     fn insert(&self) {
-//         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
-//         let result = sqlx::query("INSERT INTO organizations (organization_id, organization, address) VALUES (?,?,?,)")
-//             .bind(&self.organization_id)
-//             .bind(&self.organization)
-//             .bind(&self.address)
-//             .execute(&*db)
-//             .await;
-//
-//         match result {
-//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
-//             Err(e) => eprintln!("Error inserting row: {}", e),
-//         };
-//     }
-// }
 
 #[cfg(test)]
 mod test {
@@ -961,3 +850,113 @@ mod test {
         assert_eq!(Row, result.unwrap());
     }
 }
+
+// Implement Later
+// #[derive(Clone, Debug)]
+// pub struct Relationship {
+//     pub(crate) parent_id: String,
+//     pub(crate) child_id: String,
+//     pub(crate) cite_key: String,
+// }
+
+// Implement Later
+// #[derive(Clone, Debug)]
+// pub struct Author {
+//     pub(crate) cite_key: String,
+//     pub(crate) author_id: String,
+//     pub(crate) authors: String,
+// }
+
+// Implement Later
+// #[derive(Clone, Debug)]
+// pub struct Organizations {
+//     pub(crate) organization_id: String,
+//     pub(crate) organization: String,
+//     pub(crate) address: String,
+// }
+
+// impl Relationship {
+//     pub fn new(master_key: String) -> Relationship {
+//         let parent_id = Uuid::new_v4().to_string();
+//         let child_id = Uuid::new_v4().to_string();
+//         Relationship {
+//             parent_id,
+//             child_id,
+//             cite_key: master_key,
+//         }
+//     }
+// }
+//
+// impl TableInsert for Relationship {
+//     fn insert(&self) {
+//         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
+//         let result = sqlx::query("INSERT INTO relationship (parent_id, child_id, cite_key) VALUES (?,?,?,)")
+//             .bind(&self.parent_id)
+//             .bind(&self.child_id)
+//             .bind(&self.cite_key)
+//             .execute(&*db)
+//             .await;
+//
+//         match result {
+//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
+//             Err(e) => eprintln!("Error inserting row: {}", e),
+//         };
+//     }
+// }
+
+// // Implement later
+// impl Author {
+//     pub fn new(master_key: String) -> Author {
+//         let author_id = Uuid::new_v4().to_string();
+//         Author {
+//             cite_key: master_key,
+//             author_id,
+//             authors: String::new(),
+//         }
+//     }
+// }
+//
+// impl TableInsert for Author {
+//     fn insert(&self) {
+//         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
+//         let result = sqlx::query("INSERT INTO author (cite_key, author_id, authors) VALUES (?,?,?,)")
+//             .bind(&self.cite_key)
+//             .bind(&self.author_id)
+//             .bind(&self.authors)
+//             .execute(&*db)
+//             .await;
+//
+//         match result {
+//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
+//             Err(e) => eprintln!("Error inserting row: {}", e),
+//         };
+//     }
+// }
+// // Implement later
+// impl Organizations {
+//     pub fn new() -> Organizations {
+//         let organization_id = Uuid::new_v4().to_string();
+//         Organizations {
+//             organization_id,
+//             organization: String::new(),
+//             address: String::new(),
+//         }
+//     }
+// }
+//
+// impl TableInsert for Organizations {
+//     fn insert(&self) {
+//         let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
+//         let result = sqlx::query("INSERT INTO organizations (organization_id, organization, address) VALUES (?,?,?,)")
+//             .bind(&self.organization_id)
+//             .bind(&self.organization)
+//             .bind(&self.address)
+//             .execute(&*db)
+//             .await;
+//
+//         match result {
+//             Ok(rs) => eprintln!("Row inserted: {:?}", rs),
+//             Err(e) => eprintln!("Error inserting row: {}", e),
+//         };
+//     }
+// }

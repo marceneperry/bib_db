@@ -12,8 +12,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tui_textarea::TextArea;
 
+/// The app module structs and functions
 // todo! Future implementation show ALL items sorted by cite_key?
-
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum InputMode {
     Command,
@@ -77,12 +77,12 @@ impl App {
             active_menu_item: MenuItem::Home,
             book_list_state: Arc::new(Mutex::new(ListState::default())),
             article_list_state: Arc::new(Mutex::new(ListState::default())),
-            update_item_id: "64406381-99a9-44bf-9bfc-a594ddd13356".to_string(),
+            update_item_id: "".to_string(),
             update_flag: false,
         }
     }
 
-    // Run the terminal loop with event handlers
+    /// Run the terminal loop with event handlers
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<(), Error> {
         // setup mpsc to handle the channels in the rendering loop
         let (tx, rx) = mpsc::channel();
@@ -422,7 +422,7 @@ impl App {
         }
     }
 
-    /// Saves the data entered in the textarea to Book or Article table
+    /// Save the data entered in the textarea to Book or Article table
     fn save_as_item_type(&mut self, text_area: &TextArea) {
         let mut text_vec = Vec::new();
         for line in text_area.lines() {
